@@ -1,4 +1,3 @@
-```python
 import os
 import json
 import discord
@@ -136,4 +135,4 @@ intents.message_content = True
 client = DiscordClient(intents=intents)
 
 client.run(TOKEN)
-```
+
