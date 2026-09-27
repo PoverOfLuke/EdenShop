@@ -1,0 +1,22 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import Topbar from '@/components/Topbar.astro';
+import ShopCard from '@/components/ShopCard.astro';
+import { shops } from '@/lib/mockData';
+---
+<BaseLayout title="Negozi" activeSection="negozi">
+  <Topbar slot="topbar" title="Negozi" />
+
+  <p class="page-lede">
+    Tutti i negozi registrati sul server. Apri un negozio per vedere posizione,
+    descrizione, indicazioni e la sua lista prodotti.
+  </p>
+
+  <div class="toolbar">
+    <span class="widget__meta" style="font-size:13px;">{shops.length} negozi registrati</span>
+  </div>
+
+  <div class="shop-grid">
+    {shops.map((shop) => <ShopCard shop={shop} />)}
+  </div>
+</BaseLayout>

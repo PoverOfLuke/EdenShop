@@ -1,0 +1,49 @@
+---
+import type { Product } from '@/lib/types';
+import { getShopBySlug } from '@/lib/mockData';
+
+interface Props { product: Product }
+const { product } = Astro.props as Props;
+const shop = getShopBySlug(product.shopSlug);
+
+const catColors: Record<string, string> = {
+  minerale: 'var(--cat-minerale)',
+  gemma: 'var(--cat-gemma)',
+  cibo: 'var(--cat-cibo)',
+  legno: 'var(--cat-legno)',
+  redstone: 'var(--cat-redstone)',
+  blocco: 'var(--cat-blocco)',
+  raro: 'var(--cat-raro)',
+  strumento: 'var(--cat-strumento)',
+};
+const swatch = catColors[product.category] ?? 'var(--cat-blocco)';
+---
+<a
+  class="product-card"
+  href={`/prodotti/${product.slug}`}
+  data-name={product.name.toLowerCase()}
+  data-category={product.category}
+  data-shop={product.shopSlug}
+>
+  <div class="product-card__top">
+    <div class="block-icon" style={`--swatch: ${swatch}`}></div>
+    <div>
+      <div class="product-card__name">{product.name}</div>
+      <div class="product-card__shop">{shop?.name ?? 'negozio sconosciuto'}</div>
+    </div>
+  </div>
+
+  <div class="product-card__row">
+    <span class={`stock ${product.stock === 0 ? 'stock--zero' : ''}`}>
+      {product.stock === 0 ? 'esaurito' : `${product.stock} in stock`}
+    </span>
+    <span class="price">
+      {product.unitPrice !== null && (
+        <span class="price__unit">{product.unitPrice} {product.currency}<span style="color:var(--text-faint); font-weight:400;"> /pz</span></span>
+      )}
+      {product.stackPrice !== null && (
+        <span class="price__stack">{product.stackPrice} {product.currency} / stack 64</span>
+      )}
+    </span>
+  </div>
+</a>

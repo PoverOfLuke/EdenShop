@@ -1,0 +1,82 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import Topbar from '@/components/Topbar.astro';
+import ProductCard from '@/components/ProductCard.astro';
+import { products, shops } from '@/lib/mockData';
+
+const categories = Array.from(new Set(products.map((p) => p.category))).sort();
+---
+<BaseLayout title="Prodotti" activeSection="prodotti">
+  <Topbar slot="topbar" title="Prodotti">
+    <div class="search-bar">
+      <span class="search-bar__icon">⌕</span>
+      <input id="product-search" type="text" placeholder="Cerca un prodotto…" autocomplete="off" />
+    </div>
+  </Topbar>
+
+  <p class="page-lede">
+    Tutti i prodotti in vendita, da tutti i negozi. Filtra per categoria o
+    negozio, poi apri un prodotto per vedere il prezzo e raggiungere il negozio.
+  </p>
+
+  <div class="toolbar">
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+      <div class="field" style="margin-bottom:0;">
+        <select id="filter-category">
+          <option value="">Tutte le categorie</option>
+          {categories.map((c) => <option value={c}>{c}</option>)}
+        </select>
+      </div>
+      <div class="field" style="margin-bottom:0;">
+        <select id="filter-shop">
+          <option value="">Tutti i negozi</option>
+          {shops.map((s) => <option value={s.slug}>{s.name}</option>)}
+        </select>
+      </div>
+    </div>
+    <span class="widget__meta" id="result-count" style="font-size:13px;">{products.length} prodotti</span>
+  </div>
+
+  <div class="product-grid" id="product-grid">
+    {products.map((p) => <ProductCard product={p} />)}
+  </div>
+
+  <div class="empty-state" id="empty-state" style="display:none;">
+    <div class="empty-state__icon"></div>
+    Nessun prodotto corrisponde alla ricerca.
+  </div>
+</BaseLayout>
+
+<script>
+  const searchInput = document.getElementById('product-search') as HTMLInputElement;
+  const categorySelect = document.getElementById('filter-category') as HTMLSelectElement;
+  const shopSelect = document.getElementById('filter-shop') as HTMLSelectElement;
+  const grid = document.getElementById('product-grid') as HTMLElement;
+  const emptyState = document.getElementById('empty-state') as HTMLElement;
+  const resultCount = document.getElementById('result-count') as HTMLElement;
+  const cards = Array.from(grid.querySelectorAll<HTMLAnchorElement>('.product-card'));
+
+  function applyFilters() {
+    const query = searchInput.value.trim().toLowerCase();
+    const category = categorySelect.value;
+    const shop = shopSelect.value;
+    let visible = 0;
+
+    for (const card of cards) {
+      const matchesQuery = !query || (card.dataset.name ?? '').includes(query);
+      const matchesCategory = !category || card.dataset.category === category;
+      const matchesShop = !shop || card.dataset.shop === shop;
+      const show = matchesQuery && matchesCategory && matchesShop;
+      card.style.display = show ? '' : 'none';
+      if (show) visible++;
+    }
+
+    resultCount.textContent = `${visible} prodott${visible === 1 ? 'o' : 'i'}`;
+    emptyState.style.display = visible === 0 ? 'block' : 'none';
+    grid.style.display = visible === 0 ? 'none' : 'grid';
+  }
+
+  searchInput.addEventListener('input', applyFilters);
+  categorySelect.addEventListener('change', applyFilters);
+  shopSelect.addEventListener('change', applyFilters);
+</script>

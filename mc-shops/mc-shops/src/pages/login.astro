@@ -1,0 +1,36 @@
+---
+import '@/styles/global.css';
+---
+<html lang="it">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Accesso venditori · Ledger</title>
+  </head>
+  <body>
+    <div class="login-shell">
+      <div class="login-card">
+        <div class="login-card__brand">
+          <div class="sidebar__brand-mark"></div>
+          <span class="sidebar__brand-text">Ledger</span>
+        </div>
+        <h1>Accesso venditori</h1>
+        <p class="sub">Entra per gestire il tuo negozio e aggiornare i prodotti.</p>
+
+        <form>
+          <div class="field">
+            <label for="username">Nome utente Minecraft</label>
+            <input id="username" name="username" type="text" placeholder="Es. Steve_IT" autocomplete="username" />
+          </div>
+          <div class="field">
+            <label for="password">Codice di accesso</label>
+            <input id="password" name="password" type="password" placeholder="••••••••" autocomplete="current-password" />
+          </div>
+          <button class="btn btn--primary" type="submit">Accedi</button>
+        </form>
+
+        <a class="login-back" href="/">← torna alla dashboard</a>
+      </div>
+    </div>
+  </body>
+</html>

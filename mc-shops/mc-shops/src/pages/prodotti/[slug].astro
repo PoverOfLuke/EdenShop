@@ -1,0 +1,73 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import Topbar from '@/components/Topbar.astro';
+import { products, getProductBySlug, getShopBySlug } from '@/lib/mockData';
+
+export function getStaticPaths() {
+  return products.map((p) => ({ params: { slug: p.slug } }));
+}
+
+const { slug } = Astro.params;
+const product = getProductBySlug(slug as string);
+if (!product) return Astro.redirect('/prodotti');
+const shop = getShopBySlug(product.shopSlug);
+
+const catColors: Record<string, string> = {
+  minerale: 'var(--cat-minerale)',
+  gemma: 'var(--cat-gemma)',
+  cibo: 'var(--cat-cibo)',
+  legno: 'var(--cat-legno)',
+  redstone: 'var(--cat-redstone)',
+  blocco: 'var(--cat-blocco)',
+  raro: 'var(--cat-raro)',
+  strumento: 'var(--cat-strumento)',
+};
+const swatch = catColors[product.category] ?? 'var(--cat-blocco)';
+---
+<BaseLayout title={product.name} activeSection="prodotti">
+  <Topbar slot="topbar" title={product.name} />
+
+  <p class="breadcrumb"><a href="/prodotti">Prodotti</a> / {product.name}</p>
+
+  <div class="panel product-detail__panel">
+    <div class="block-icon block-icon--lg" style={`--swatch: ${swatch}`}></div>
+    <div style="flex:1;">
+      <h1 style="margin-bottom:4px;">{product.name}</h1>
+      <div class="widget__meta" style="text-transform:capitalize;">{product.category}</div>
+
+      <div class="product-detail__prices">
+        {product.unitPrice !== null && (
+          <div class="product-detail__price-block">
+            <span class="label">prezzo a unità</span>
+            <span class="value">{product.unitPrice} {product.currency}</span>
+          </div>
+        )}
+        {product.stackPrice !== null && (
+          <div class="product-detail__price-block">
+            <span class="label">prezzo a stack (64)</span>
+            <span class="value">{product.stackPrice} {product.currency}</span>
+          </div>
+        )}
+        <div class="product-detail__price-block">
+          <span class="label">disponibilità</span>
+          <span class={`value ${product.stock === 0 ? 'lowstock-qty--zero' : ''}`} style={product.stock===0 ? '' : 'color:var(--text);'}>
+            {product.stock === 0 ? 'esaurito' : product.stock}
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {shop && (
+    <div class="panel shop-link-card">
+      <div>
+        <div class="widget__label">Disponibile presso</div>
+        <div class="shop-card__name" style="margin-top:4px;">{shop.name}</div>
+        <div class="detail-head__meta" style="margin-top:6px;">
+          <span class="coord-chip">X {shop.x} · Z {shop.z} · {shop.dimension}</span>
+        </div>
+      </div>
+      <a class="btn btn--primary" href={`/negozi/${shop.slug}`}>Vai al negozio</a>
+    </div>
+  )}
+</BaseLayout>

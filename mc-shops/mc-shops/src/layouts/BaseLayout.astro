@@ -1,0 +1,30 @@
+---
+import Sidebar from '@/components/Sidebar.astro';
+import '@/styles/global.css';
+
+interface Props {
+  title: string;
+  activeSection?: 'dashboard' | 'negozi' | 'prodotti' | 'login';
+}
+
+const { title, activeSection = 'dashboard' } = Astro.props as Props;
+---
+<html lang="it">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title} · Ledger</title>
+    <meta name="description" content="Pannello di gestione dei negozi del server Minecraft." />
+  </head>
+  <body>
+    <div class="app-shell">
+      <Sidebar active={activeSection} />
+      <div>
+        <slot name="topbar" />
+        <main class="main">
+          <slot />
+        </main>
+      </div>
+    </div>
+  </body>
+</html>
