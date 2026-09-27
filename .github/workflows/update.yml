@@ -28,6 +28,7 @@ jobs:
         env:
           DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
           CHANNEL_ID: ${{ secrets.CHANNEL_ID }}
+          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
         run: python scraper/main.py
 
       - name: Save data
