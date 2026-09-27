@@ -1,3 +1,4 @@
+```python
 import os
 import json
 import discord
@@ -35,7 +36,6 @@ def save_to_neon(messages):
 
     with psycopg.connect(DATABASE_URL) as conn:
         with conn.cursor() as cur:
-
             for message in messages:
                 cur.execute(
                     """
@@ -73,7 +73,6 @@ class DiscordClient(discord.Client):
             return
 
         data = load_data()
-
         last_message_id = data.get("last_message_id")
 
         new_messages = []
@@ -81,7 +80,10 @@ class DiscordClient(discord.Client):
         if last_message_id is None:
             print("Prima esecuzione: recupero dello storico...")
 
-            async for message in channel.history(limit=None, oldest_first=True):
+            async for message in channel.history(
+                limit=None,
+                oldest_first=True
+            ):
                 new_messages.append({
                     "id": str(message.id),
                     "author": message.author.name,
@@ -106,22 +108,22 @@ class DiscordClient(discord.Client):
 
         if not new_messages:
             print("Nessun nuovo messaggio.")
-
             await self.close()
             return
 
         print(f"Trovati {len(new_messages)} nuovi messaggi.")
 
-        # Salva nello storico locale
-        data["messages"].extend(new_messages)
+        # Prima salviamo i messaggi in Neon.
+        # Se Neon restituisce un errore, questa funzione
+        # solleva l'errore e data.json NON viene aggiornato.
+        save_to_neon(new_messages)
 
-        # Aggiorna l'ultimo message ID
+        # Solo se Neon è andato a buon fine aggiorniamo
+        # lo storico locale.
+        data["messages"].extend(new_messages)
         data["last_message_id"] = new_messages[-1]["id"]
 
         save_data(data)
-
-        # Salva anche in Neon
-        save_to_neon(new_messages)
 
         print("Aggiornamento completato.")
 
@@ -134,3 +136,4 @@ intents.message_content = True
 client = DiscordClient(intents=intents)
 
 client.run(TOKEN)
+```
