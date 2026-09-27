@@ -3,16 +3,11 @@ import json
 import discord
 import psycopg
 
+DATA_FILE = "data.json"
+
 TOKEN = os.environ["DISCORD_TOKEN"]
 CHANNEL_ID = int(os.environ["CHANNEL_ID"])
 DATABASE_URL = os.environ["NEON_DATABASE_URL"]
-
-DATA_FILE = "data.json"
-
-intents = discord.Intents.default()
-intents.message_content = True
-
-client = discord.Client(intents=intents)
 
 
 def load_data():
@@ -22,21 +17,25 @@ def load_data():
             "messages": []
         }
 
-    with open(DATA_FILE, "r", encoding="utf-8") as file:
-        return json.load(file)
+    with open(DATA_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
 
 
 def save_data(data):
-    with open(DATA_FILE, "w", encoding="utf-8") as file:
-        json.dump(data, file, ensure_ascii=False, indent=2)
+    with open(DATA_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
 
 
-def save_to_database(messages):
+def save_to_neon(messages):
     if not messages:
+        print("Nessun nuovo messaggio da inserire in Neon.")
         return
+
+    print(f"Inserimento di {len(messages)} messaggi in Neon...")
 
     with psycopg.connect(DATABASE_URL) as conn:
         with conn.cursor() as cur:
+
             for message in messages:
                 cur.execute(
                     """
@@ -59,68 +58,79 @@ def save_to_database(messages):
 
         conn.commit()
 
+    print("Messaggi salvati in Neon.")
 
-@client.event
-async def on_ready():
-    print(f"Connesso come {client.user}")
 
-    channel = client.get_channel(CHANNEL_ID)
+class DiscordClient(discord.Client):
+    async def on_ready(self):
+        print(f"Connesso come {self.user}")
 
-    if channel is None:
-        print("ERRORE: canale non trovato")
-        await client.close()
-        return
+        channel = self.get_channel(CHANNEL_ID)
 
-    data = load_data()
+        if channel is None:
+            print("Canale non trovato.")
+            await self.close()
+            return
 
-    last_message_id = data.get("last_message_id")
+        data = load_data()
 
-    new_messages = []
+        last_message_id = data.get("last_message_id")
 
-    async for message in channel.history(
-        limit=None,
-        after=discord.Object(id=int(last_message_id))
-        if last_message_id
-        else None,
-        oldest_first=True
-    ):
-        new_messages.append({
-            "id": str(message.id),
-            "author": str(message.author),
-            "content": message.content,
-            "created_at": message.created_at
-        })
+        new_messages = []
 
-    if new_messages:
+        if last_message_id is None:
+            print("Prima esecuzione: recupero dello storico...")
 
-        # Salva prima i nuovi messaggi nel database
-        save_to_database(new_messages)
+            async for message in channel.history(limit=None, oldest_first=True):
+                new_messages.append({
+                    "id": str(message.id),
+                    "author": message.author.name,
+                    "content": message.content,
+                    "created_at": message.created_at.isoformat()
+                })
 
-        # Mantiene anche data.json come backup
-        json_messages = []
+        else:
+            print(f"Recupero messaggi dopo {last_message_id}...")
 
-        for message in new_messages:
-            json_messages.append({
-                "id": message["id"],
-                "author": message["author"],
-                "content": message["content"],
-                "created_at": message["created_at"].isoformat()
-            })
+            async for message in channel.history(
+                limit=None,
+                after=discord.Object(id=int(last_message_id)),
+                oldest_first=True
+            ):
+                new_messages.append({
+                    "id": str(message.id),
+                    "author": message.author.name,
+                    "content": message.content,
+                    "created_at": message.created_at.isoformat()
+                })
 
-        data["messages"].extend(json_messages)
+        if not new_messages:
+            print("Nessun nuovo messaggio.")
 
-        # Aggiorna il punto di partenza
+            await self.close()
+            return
+
+        print(f"Trovati {len(new_messages)} nuovi messaggi.")
+
+        # Salva nello storico locale
+        data["messages"].extend(new_messages)
+
+        # Aggiorna l'ultimo message ID
         data["last_message_id"] = new_messages[-1]["id"]
 
         save_data(data)
 
-        print(f"Nuovi messaggi salvati: {len(new_messages)}")
-        print(f"Ultimo message ID: {data['last_message_id']}")
+        # Salva anche in Neon
+        save_to_neon(new_messages)
 
-    else:
-        print("Nessun nuovo messaggio.")
+        print("Aggiornamento completato.")
 
-    await client.close()
+        await self.close()
 
+
+intents = discord.Intents.default()
+intents.message_content = True
+
+client = DiscordClient(intents=intents)
 
 client.run(TOKEN)
