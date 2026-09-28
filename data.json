@@ -1,5 +1,5 @@
 {
-  "last_message_id": "1553939852167479317",
+  "last_message_id": "1554158281528844329",
   "messages": [
     {
       "id": "1551684861247619083",
@@ -570,6 +570,12 @@
       "author": "Eden Bot",
       "content": "<t:1790558531:T> `[PowerOfShop]` **.Xfreri2000** hit snitch `central_shop` at `[world | -32, 68, -80]`",
       "created_at": "2026-09-28T01:22:11.563000+00:00"
+    },
+    {
+      "id": "1554158281528844329",
+      "author": "Eden Bot",
+      "content": "<t:1790610609:T> `[PowerOfShop]` **Squiddodely** hit snitch `central_shop` at `[world | -40, 63, -80]`",
+      "created_at": "2026-09-28T15:50:09.181000+00:00"
     }
   ]
 }
