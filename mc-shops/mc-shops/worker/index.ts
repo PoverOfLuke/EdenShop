@@ -229,6 +229,18 @@ export default {
     const url = new URL(request.url);
     const { pathname } = url;
 
+    // TEMPORARY — remove once the env var issue is confirmed fixed.
+    // Reports only whether each binding is present, never its value.
+    if (pathname === '/api/debug/env') {
+      return json({
+        DISCORD_CLIENT_ID: Boolean(env.DISCORD_CLIENT_ID),
+        DISCORD_CLIENT_SECRET: Boolean(env.DISCORD_CLIENT_SECRET),
+        DISCORD_REDIRECT_URI: Boolean(env.DISCORD_REDIRECT_URI),
+        SESSION_SECRET: Boolean(env.SESSION_SECRET),
+        NEON_DATABASE_URL: Boolean(env.NEON_DATABASE_URL),
+      });
+    }
+
     if (pathname === '/api/auth/discord') return handleDiscordStart(env);
     if (pathname === '/api/auth/discord/callback') return handleDiscordCallback(request, env);
     if (pathname === '/api/auth/logout') return handleLogout();
