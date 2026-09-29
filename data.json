@@ -1,5 +1,5 @@
 {
-  "last_message_id": "1554511116758155387",
+  "last_message_id": "1554570385935048765",
   "messages": [
     {
       "id": "1551684861247619083",
@@ -624,6 +624,810 @@
       "author": "Eden Bot",
       "content": "<t:1790694731:T> `[PowerOfShop]` **KairoLuke** hit snitch `central_shop` at `[world | -40, 63, -80]`",
       "created_at": "2026-09-29T15:12:11.655000+00:00"
+    },
+    {
+      "id": "1554550822191239250",
+      "author": "Eden Bot",
+      "content": "<t:1790704198:T> `[PowerOfShop]` **.VestingSwing834** hit snitch `central_shop` at `[world | -28, 68, -68]`",
+      "created_at": "2026-09-29T17:49:58.168000+00:00"
+    },
+    {
+      "id": "1554550838888767641",
+      "author": "Eden Bot",
+      "content": "<t:1790704202:T> `[PowerOfShop]` **.VestingSwing834** hit snitch `central_shop` at `[world | -40, 74, -69]`",
+      "created_at": "2026-09-29T17:50:02.149000+00:00"
+    },
+    {
+      "id": "1554552327422345248",
+      "author": "Eden Bot",
+      "content": "<t:1790704556:T> `[PowerOfShop]` **.VestingSwing834** hit snitch `central_shop` at `[world | -39, 68, -56]`",
+      "created_at": "2026-09-29T17:55:57.043000+00:00"
+    },
+    {
+      "id": "1554552338818273371",
+      "author": "Eden Bot",
+      "content": "<t:1790704559:T> `[PowerOfShop]` **.VestingSwing834** hit snitch `central_shop` at `[world | -41, 74, -67]`",
+      "created_at": "2026-09-29T17:55:59.760000+00:00"
+    },
+    {
+      "id": "1554552366433439815",
+      "author": "Eden Bot",
+      "content": "<t:1790704566:T> `[PowerOfShop]` **.VestingSwing834** logged out on snitch `central_shop` at `[world | -47, 68, -68]`",
+      "created_at": "2026-09-29T17:56:06.344000+00:00"
+    },
+    {
+      "id": "1554567563508191315",
+      "author": "Eden Bot",
+      "content": "<t:1790708189:T> `[PowerOfShop]` **Actualmouse** hit snitch `central_shop` at `[world | -40, 68, -56]`",
+      "created_at": "2026-09-29T18:56:29.609000+00:00"
+    },
+    {
+      "id": "1554567568155611190",
+      "author": "Eden Bot",
+      "content": "<t:1790708190:T> `[PowerOfShop]` **Actualmouse** hit snitch `central_shop` at `[world | -40, 74, -65]`",
+      "created_at": "2026-09-29T18:56:30.717000+00:00"
+    },
+    {
+      "id": "1554567572660162643",
+      "author": "Eden Bot",
+      "content": "<t:1790708191:T> `[PowerOfShop]` **Actualmouse** hit snitch `central_shop` at `[world | -41, 74, -68]`",
+      "created_at": "2026-09-29T18:56:31.791000+00:00"
+    },
+    {
+      "id": "1554567930677690480",
+      "author": "Eden Bot",
+      "content": "<t:1790708276:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:57:57.149000+00:00"
+    },
+    {
+      "id": "1554567931600572498",
+      "author": "Eden Bot",
+      "content": "<t:1790708277:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:57:57.369000+00:00"
+    },
+    {
+      "id": "1554567932481118231",
+      "author": "Eden Bot",
+      "content": "<t:1790708277:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:57:57.579000+00:00"
+    },
+    {
+      "id": "1554567933454459022",
+      "author": "Eden Bot",
+      "content": "<t:1790708277:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:57:57.811000+00:00"
+    },
+    {
+      "id": "1554567934574075967",
+      "author": "Eden Bot",
+      "content": "<t:1790708277:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:57:58.078000+00:00"
+    },
+    {
+      "id": "1554567952437747743",
+      "author": "Eden Bot",
+      "content": "<t:1790708278:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:02.337000+00:00"
+    },
+    {
+      "id": "1554567953134129257",
+      "author": "Eden Bot",
+      "content": "<t:1790708278:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:02.503000+00:00"
+    },
+    {
+      "id": "1554567953863680033",
+      "author": "Eden Bot",
+      "content": "<t:1790708278:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:02.677000+00:00"
+    },
+    {
+      "id": "1554567955310837862",
+      "author": "Eden Bot",
+      "content": "<t:1790708278:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:03.022000+00:00"
+    },
+    {
+      "id": "1554567957919563850",
+      "author": "Eden Bot",
+      "content": "<t:1790708279:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:03.644000+00:00"
+    },
+    {
+      "id": "1554567959220060191",
+      "author": "Eden Bot",
+      "content": "<t:1790708279:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:03.954000+00:00"
+    },
+    {
+      "id": "1554567978144497728",
+      "author": "Eden Bot",
+      "content": "<t:1790708279:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:08.466000+00:00"
+    },
+    {
+      "id": "1554567978731835443",
+      "author": "Eden Bot",
+      "content": "<t:1790708280:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:08.606000+00:00"
+    },
+    {
+      "id": "1554567979436609618",
+      "author": "Eden Bot",
+      "content": "<t:1790708280:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:08.774000+00:00"
+    },
+    {
+      "id": "1554567980195516566",
+      "author": "Eden Bot",
+      "content": "<t:1790708281:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:08.955000+00:00"
+    },
+    {
+      "id": "1554567980476661824",
+      "author": "Eden Bot",
+      "content": "<t:1790708282:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:09.022000+00:00"
+    },
+    {
+      "id": "1554567999577522319",
+      "author": "Eden Bot",
+      "content": "<t:1790708282:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:13.576000+00:00"
+    },
+    {
+      "id": "1554568001062182952",
+      "author": "Eden Bot",
+      "content": "<t:1790708282:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:13.930000+00:00"
+    },
+    {
+      "id": "1554568001888718850",
+      "author": "Eden Bot",
+      "content": "<t:1790708282:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:14.127000+00:00"
+    },
+    {
+      "id": "1554568002668593224",
+      "author": "Eden Bot",
+      "content": "<t:1790708283:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:14.313000+00:00"
+    },
+    {
+      "id": "1554568004040261776",
+      "author": "Eden Bot",
+      "content": "<t:1790708283:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:14.640000+00:00"
+    },
+    {
+      "id": "1554568005495824487",
+      "author": "Eden Bot",
+      "content": "<t:1790708283:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:14.987000+00:00"
+    },
+    {
+      "id": "1554568025674612747",
+      "author": "Eden Bot",
+      "content": "<t:1790708284:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:19.798000+00:00"
+    },
+    {
+      "id": "1554568028539060333",
+      "author": "Eden Bot",
+      "content": "<t:1790708284:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:20.481000+00:00"
+    },
+    {
+      "id": "1554568030208524360",
+      "author": "Eden Bot",
+      "content": "<t:1790708284:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:20.879000+00:00"
+    },
+    {
+      "id": "1554568030791663697",
+      "author": "Eden Bot",
+      "content": "<t:1790708284:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:21.018000+00:00"
+    },
+    {
+      "id": "1554568031349510279",
+      "author": "Eden Bot",
+      "content": "<t:1790708285:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:21.151000+00:00"
+    },
+    {
+      "id": "1554568032238571552",
+      "author": "Eden Bot",
+      "content": "<t:1790708285:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:21.363000+00:00"
+    },
+    {
+      "id": "1554568051486232689",
+      "author": "Eden Bot",
+      "content": "<t:1790708285:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:25.952000+00:00"
+    },
+    {
+      "id": "1554568052157186260",
+      "author": "Eden Bot",
+      "content": "<t:1790708286:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:26.112000+00:00"
+    },
+    {
+      "id": "1554568052673220670",
+      "author": "Eden Bot",
+      "content": "<t:1790708286:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:26.235000+00:00"
+    },
+    {
+      "id": "1554568053268680826",
+      "author": "Eden Bot",
+      "content": "<t:1790708286:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:26.377000+00:00"
+    },
+    {
+      "id": "1554568053965197355",
+      "author": "Eden Bot",
+      "content": "<t:1790708287:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:26.543000+00:00"
+    },
+    {
+      "id": "1554568073389019257",
+      "author": "Eden Bot",
+      "content": "<t:1790708287:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:31.174000+00:00"
+    },
+    {
+      "id": "1554568073728630817",
+      "author": "Eden Bot",
+      "content": "<t:1790708287:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:31.255000+00:00"
+    },
+    {
+      "id": "1554568074391199878",
+      "author": "Eden Bot",
+      "content": "<t:1790708288:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:31.413000+00:00"
+    },
+    {
+      "id": "1554568075091902556",
+      "author": "Eden Bot",
+      "content": "<t:1790708288:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:31.580000+00:00"
+    },
+    {
+      "id": "1554568075637031003",
+      "author": "Eden Bot",
+      "content": "<t:1790708288:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:31.710000+00:00"
+    },
+    {
+      "id": "1554568094914187325",
+      "author": "Eden Bot",
+      "content": "<t:1790708288:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:36.306000+00:00"
+    },
+    {
+      "id": "1554568095442534452",
+      "author": "Eden Bot",
+      "content": "<t:1790708289:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:36.432000+00:00"
+    },
+    {
+      "id": "1554568096142856363",
+      "author": "Eden Bot",
+      "content": "<t:1790708289:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:36.599000+00:00"
+    },
+    {
+      "id": "1554568096444850229",
+      "author": "Eden Bot",
+      "content": "<t:1790708289:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:36.671000+00:00"
+    },
+    {
+      "id": "1554568097237565561",
+      "author": "Eden Bot",
+      "content": "<t:1790708290:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:36.860000+00:00"
+    },
+    {
+      "id": "1554568116384571465",
+      "author": "Eden Bot",
+      "content": "<t:1790708290:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:41.425000+00:00"
+    },
+    {
+      "id": "1554568117043331083",
+      "author": "Eden Bot",
+      "content": "<t:1790708290:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:41.582000+00:00"
+    },
+    {
+      "id": "1554568117886124123",
+      "author": "Eden Bot",
+      "content": "<t:1790708291:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:41.783000+00:00"
+    },
+    {
+      "id": "1554568118360346667",
+      "author": "Eden Bot",
+      "content": "<t:1790708291:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:41.896000+00:00"
+    },
+    {
+      "id": "1554568119186362441",
+      "author": "Eden Bot",
+      "content": "<t:1790708291:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:42.093000+00:00"
+    },
+    {
+      "id": "1554568138065051689",
+      "author": "Eden Bot",
+      "content": "<t:1790708291:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:46.594000+00:00"
+    },
+    {
+      "id": "1554568138765639743",
+      "author": "Eden Bot",
+      "content": "<t:1790708292:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:46.761000+00:00"
+    },
+    {
+      "id": "1554568139243659355",
+      "author": "Eden Bot",
+      "content": "<t:1790708292:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:46.875000+00:00"
+    },
+    {
+      "id": "1554568139751030796",
+      "author": "Eden Bot",
+      "content": "<t:1790708292:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:46.996000+00:00"
+    },
+    {
+      "id": "1554568140426313729",
+      "author": "Eden Bot",
+      "content": "<t:1790708293:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:47.157000+00:00"
+    },
+    {
+      "id": "1554568159489429566",
+      "author": "Eden Bot",
+      "content": "<t:1790708293:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:51.702000+00:00"
+    },
+    {
+      "id": "1554568160454381669",
+      "author": "Eden Bot",
+      "content": "<t:1790708293:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:51.932000+00:00"
+    },
+    {
+      "id": "1554568161523925075",
+      "author": "Eden Bot",
+      "content": "<t:1790708293:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:52.187000+00:00"
+    },
+    {
+      "id": "1554568162756796551",
+      "author": "Eden Bot",
+      "content": "<t:1790708294:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:52.481000+00:00"
+    },
+    {
+      "id": "1554568164099104779",
+      "author": "Eden Bot",
+      "content": "<t:1790708294:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:52.801000+00:00"
+    },
+    {
+      "id": "1554568164724187137",
+      "author": "Eden Bot",
+      "content": "<t:1790708294:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:52.950000+00:00"
+    },
+    {
+      "id": "1554568185301442753",
+      "author": "Eden Bot",
+      "content": "<t:1790708295:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:57.856000+00:00"
+    },
+    {
+      "id": "1554568186446348400",
+      "author": "Eden Bot",
+      "content": "<t:1790708295:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:58.129000+00:00"
+    },
+    {
+      "id": "1554568187243270255",
+      "author": "Eden Bot",
+      "content": "<t:1790708295:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:58.319000+00:00"
+    },
+    {
+      "id": "1554568187905970288",
+      "author": "Eden Bot",
+      "content": "<t:1790708295:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:58.477000+00:00"
+    },
+    {
+      "id": "1554568188505751566",
+      "author": "Eden Bot",
+      "content": "<t:1790708296:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:58:58.620000+00:00"
+    },
+    {
+      "id": "1554568207149568112",
+      "author": "Eden Bot",
+      "content": "<t:1790708299:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:59:03.065000+00:00"
+    },
+    {
+      "id": "1554568209888317506",
+      "author": "Eden Bot",
+      "content": "<t:1790708299:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:59:03.718000+00:00"
+    },
+    {
+      "id": "1554568211138224229",
+      "author": "Eden Bot",
+      "content": "<t:1790708299:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:59:04.016000+00:00"
+    },
+    {
+      "id": "1554568212513947770",
+      "author": "Eden Bot",
+      "content": "<t:1790708299:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:59:04.344000+00:00"
+    },
+    {
+      "id": "1554568213361066055",
+      "author": "Eden Bot",
+      "content": "<t:1790708300:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:59:04.546000+00:00"
+    },
+    {
+      "id": "1554568213512196119",
+      "author": "Eden Bot",
+      "content": "<t:1790708300:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:59:04.582000+00:00"
+    },
+    {
+      "id": "1554568233288204289",
+      "author": "Eden Bot",
+      "content": "<t:1790708307:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:59:09.297000+00:00"
+    },
+    {
+      "id": "1554568235297280053",
+      "author": "Eden Bot",
+      "content": "<t:1790708308:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:59:09.776000+00:00"
+    },
+    {
+      "id": "1554568236517953698",
+      "author": "Eden Bot",
+      "content": "<t:1790708308:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:59:10.067000+00:00"
+    },
+    {
+      "id": "1554568236740386858",
+      "author": "Eden Bot",
+      "content": "<t:1790708308:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:59:10.120000+00:00"
+    },
+    {
+      "id": "1554568237453287470",
+      "author": "Eden Bot",
+      "content": "<t:1790708309:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:59:10.290000+00:00"
+    },
+    {
+      "id": "1554568238686281841",
+      "author": "Eden Bot",
+      "content": "<t:1790708309:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:59:10.584000+00:00"
+    },
+    {
+      "id": "1554568258621939723",
+      "author": "Eden Bot",
+      "content": "<t:1790708309:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:59:15.337000+00:00"
+    },
+    {
+      "id": "1554568259259596944",
+      "author": "Eden Bot",
+      "content": "<t:1790708309:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:59:15.489000+00:00"
+    },
+    {
+      "id": "1554568260031221863",
+      "author": "Eden Bot",
+      "content": "<t:1790708310:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:59:15.673000+00:00"
+    },
+    {
+      "id": "1554568260563767297",
+      "author": "Eden Bot",
+      "content": "<t:1790708310:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:59:15.800000+00:00"
+    },
+    {
+      "id": "1554568260999979172",
+      "author": "Eden Bot",
+      "content": "<t:1790708310:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:59:15.904000+00:00"
+    },
+    {
+      "id": "1554568280268869703",
+      "author": "Eden Bot",
+      "content": "<t:1790708311:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:59:20.498000+00:00"
+    },
+    {
+      "id": "1554568280797089913",
+      "author": "Eden Bot",
+      "content": "<t:1790708311:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:59:20.624000+00:00"
+    },
+    {
+      "id": "1554568281703190575",
+      "author": "Eden Bot",
+      "content": "<t:1790708311:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:59:20.840000+00:00"
+    },
+    {
+      "id": "1554568282911019072",
+      "author": "Eden Bot",
+      "content": "<t:1790708311:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:59:21.128000+00:00"
+    },
+    {
+      "id": "1554568283846352947",
+      "author": "Eden Bot",
+      "content": "<t:1790708312:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:59:21.351000+00:00"
+    },
+    {
+      "id": "1554568301953155225",
+      "author": "Eden Bot",
+      "content": "<t:1790708312:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:59:25.668000+00:00"
+    },
+    {
+      "id": "1554568302842486917",
+      "author": "Eden Bot",
+      "content": "<t:1790708312:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:59:25.880000+00:00"
+    },
+    {
+      "id": "1554568303534407783",
+      "author": "Eden Bot",
+      "content": "<t:1790708313:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:59:26.045000+00:00"
+    },
+    {
+      "id": "1554568304130003116",
+      "author": "Eden Bot",
+      "content": "<t:1790708313:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:59:26.187000+00:00"
+    },
+    {
+      "id": "1554568304696234007",
+      "author": "Eden Bot",
+      "content": "<t:1790708313:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:59:26.322000+00:00"
+    },
+    {
+      "id": "1554568323428126874",
+      "author": "Eden Bot",
+      "content": "<t:1790708313:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:59:30.788000+00:00"
+    },
+    {
+      "id": "1554568324078243911",
+      "author": "Eden Bot",
+      "content": "<t:1790708314:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:59:30.943000+00:00"
+    },
+    {
+      "id": "1554568324644339814",
+      "author": "Eden Bot",
+      "content": "<t:1790708314:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:59:31.078000+00:00"
+    },
+    {
+      "id": "1554568325198123019",
+      "author": "Eden Bot",
+      "content": "<t:1790708314:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:59:31.210000+00:00"
+    },
+    {
+      "id": "1554568325827133451",
+      "author": "Eden Bot",
+      "content": "<t:1790708315:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:59:31.360000+00:00"
+    },
+    {
+      "id": "1554568344483537032",
+      "author": "Eden Bot",
+      "content": "<t:1790708315:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:59:35.808000+00:00"
+    },
+    {
+      "id": "1554568345452544043",
+      "author": "Eden Bot",
+      "content": "<t:1790708315:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:59:36.039000+00:00"
+    },
+    {
+      "id": "1554568346647666786",
+      "author": "Eden Bot",
+      "content": "<t:1790708315:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:59:36.324000+00:00"
+    },
+    {
+      "id": "1554568347885248512",
+      "author": "Eden Bot",
+      "content": "<t:1790708316:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:59:36.619000+00:00"
+    },
+    {
+      "id": "1554568349034483763",
+      "author": "Eden Bot",
+      "content": "<t:1790708316:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:59:36.893000+00:00"
+    },
+    {
+      "id": "1554568366365343799",
+      "author": "Eden Bot",
+      "content": "<t:1790708316:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:59:41.025000+00:00"
+    },
+    {
+      "id": "1554568367267127387",
+      "author": "Eden Bot",
+      "content": "<t:1790708316:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:59:41.240000+00:00"
+    },
+    {
+      "id": "1554568367522848930",
+      "author": "Eden Bot",
+      "content": "<t:1790708317:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:59:41.301000+00:00"
+    },
+    {
+      "id": "1554568370253463573",
+      "author": "Eden Bot",
+      "content": "<t:1790708317:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:59:41.952000+00:00"
+    },
+    {
+      "id": "1554568371125624985",
+      "author": "Eden Bot",
+      "content": "<t:1790708317:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:59:42.160000+00:00"
+    },
+    {
+      "id": "1554568372115611669",
+      "author": "Eden Bot",
+      "content": "<t:1790708318:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:59:42.396000+00:00"
+    },
+    {
+      "id": "1554568392457977868",
+      "author": "Eden Bot",
+      "content": "<t:1790708338:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:59:47.246000+00:00"
+    },
+    {
+      "id": "1554568392835338263",
+      "author": "Eden Bot",
+      "content": "<t:1790708338:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:59:47.336000+00:00"
+    },
+    {
+      "id": "1554568393837781023",
+      "author": "Eden Bot",
+      "content": "<t:1790708339:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:59:47.575000+00:00"
+    },
+    {
+      "id": "1554568394500481049",
+      "author": "Eden Bot",
+      "content": "<t:1790708339:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:59:47.733000+00:00"
+    },
+    {
+      "id": "1554568395339342057",
+      "author": "Eden Bot",
+      "content": "<t:1790708339:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:59:47.933000+00:00"
+    },
+    {
+      "id": "1554568413790347329",
+      "author": "Eden Bot",
+      "content": "<t:1790708339:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:59:52.332000+00:00"
+    },
+    {
+      "id": "1554568414968811596",
+      "author": "Eden Bot",
+      "content": "<t:1790708340:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:59:52.613000+00:00"
+    },
+    {
+      "id": "1554568416226967573",
+      "author": "Eden Bot",
+      "content": "<t:1790708340:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:59:52.913000+00:00"
+    },
+    {
+      "id": "1554568417195982939",
+      "author": "Eden Bot",
+      "content": "<t:1790708340:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:59:53.144000+00:00"
+    },
+    {
+      "id": "1554568418072731679",
+      "author": "Eden Bot",
+      "content": "<t:1790708340:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:59:53.353000+00:00"
+    },
+    {
+      "id": "1554568436015956030",
+      "author": "Eden Bot",
+      "content": "<t:1790708341:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:59:57.631000+00:00"
+    },
+    {
+      "id": "1554568436602900514",
+      "author": "Eden Bot",
+      "content": "<t:1790708341:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:59:57.771000+00:00"
+    },
+    {
+      "id": "1554568437538226448",
+      "author": "Eden Bot",
+      "content": "<t:1790708341:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:59:57.994000+00:00"
+    },
+    {
+      "id": "1554568438066716824",
+      "author": "Eden Bot",
+      "content": "<t:1790708341:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:59:58.120000+00:00"
+    },
+    {
+      "id": "1554568438658240574",
+      "author": "Eden Bot",
+      "content": "<t:1790708342:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T18:59:58.261000+00:00"
+    },
+    {
+      "id": "1554568457838788831",
+      "author": "Eden Bot",
+      "content": "<t:1790708342:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T19:00:02.834000+00:00"
+    },
+    {
+      "id": "1554568458728116260",
+      "author": "Eden Bot",
+      "content": "<t:1790708342:T> `[PowerOfShop]` **Actualmouse** purchased at snitch `central_shop` | `[world | -32, 63, -72]`:\n\n**Input Items:**\n* x1 Player Essence\n\n**Output Items:**\n* x2 Cobblestone",
+      "created_at": "2026-09-29T19:00:03.046000+00:00"
+    },
+    {
+      "id": "1554570321884090381",
+      "author": "Eden Bot",
+      "content": "<t:1790708847:T> `[PowerOfShop]` **Squiddodely** hit snitch `central_shop` at `[world | -40, 64, -80]`",
+      "created_at": "2026-09-29T19:07:27.257000+00:00"
+    },
+    {
+      "id": "1554570385935048765",
+      "author": "Eden Bot",
+      "content": "<t:1790708862:T> `[PowerOfShop]` **Squiddodely** hit snitch `central_shop` at `[world | -40, 74, -61]`",
+      "created_at": "2026-09-29T19:07:42.528000+00:00"
     }
   ]
 }
