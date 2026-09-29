@@ -1,0 +1,39 @@
+---
+interface Props {
+  active: 'home' | 'negozi' | 'prodotti' | 'login';
+}
+const { active } = Astro.props as Props;
+
+const links = [
+  { key: 'home', href: '/', label: 'Home' },
+  { key: 'negozi', href: '/negozi', label: 'Negozi' },
+  { key: 'prodotti', href: '/prodotti', label: 'Prodotti' },
+] as const;
+---
+<header class="navbar">
+  <div class="navbar__left">
+    <a class="brand" href="/">
+      <span class="brand-mark"></span>
+      <span class="brand-text">EdenShop</span>
+    </a>
+    <nav class="navbar__links" aria-label="Navigazione principale">
+      {links.map((l) => (
+        <a
+          class="nav-link"
+          href={l.href}
+          aria-current={active === l.key ? 'page' : undefined}
+        >
+          {l.label}
+        </a>
+      ))}
+    </nav>
+  </div>
+
+  <div class="navbar__right">
+    <span class="navbar__status">
+      <span class="status-dot"></span>
+      dati aggiornati via Discord
+    </span>
+    <a class="btn btn--primary" href="/login">Login venditori</a>
+  </div>
+</header>

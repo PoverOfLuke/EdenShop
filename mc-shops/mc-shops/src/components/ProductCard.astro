@@ -1,49 +1,64 @@
 ---
 import type { Product } from '@/lib/types';
 import { getShopBySlug } from '@/lib/mockData';
+import { getCatalogItem } from '@/lib/items';
 
 interface Props { product: Product }
 const { product } = Astro.props as Props;
 const shop = getShopBySlug(product.shopSlug);
-
-const catColors: Record<string, string> = {
-  minerale: 'var(--cat-minerale)',
-  gemma: 'var(--cat-gemma)',
-  cibo: 'var(--cat-cibo)',
-  legno: 'var(--cat-legno)',
-  redstone: 'var(--cat-redstone)',
-  blocco: 'var(--cat-blocco)',
-  raro: 'var(--cat-raro)',
-  strumento: 'var(--cat-strumento)',
-};
-const swatch = catColors[product.category] ?? 'var(--cat-blocco)';
+const item = getCatalogItem(product.minecraftId);
+const displayName = item?.name ?? product.minecraftId;
 ---
 <a
   class="product-card"
   href={`/prodotti/${product.slug}`}
-  data-name={product.name.toLowerCase()}
-  data-category={product.category}
+  data-name={displayName.toLowerCase()}
+  data-category={item?.category ?? ''}
   data-shop={product.shopSlug}
+  data-type={`${product.sell ? 'vende' : ''} ${product.buy ? 'compra' : ''}`.trim()}
 >
   <div class="product-card__top">
-    <div class="block-icon" style={`--swatch: ${swatch}`}></div>
+    <img class="item-icon" src={item?.image_url} alt={displayName} loading="lazy" />
     <div>
-      <div class="product-card__name">{product.name}</div>
+      <div class="product-card__name">{displayName}</div>
       <div class="product-card__shop">{shop?.name ?? 'negozio sconosciuto'}</div>
     </div>
   </div>
 
-  <div class="product-card__row">
-    <span class={`stock ${product.stock === 0 ? 'stock--zero' : ''}`}>
-      {product.stock === 0 ? 'esaurito' : `${product.stock} in stock`}
-    </span>
-    <span class="price">
-      {product.unitPrice !== null && (
-        <span class="price__unit">{product.unitPrice} {product.currency}<span style="color:var(--text-faint); font-weight:400;"> /pz</span></span>
-      )}
-      {product.stackPrice !== null && (
-        <span class="price__stack">{product.stackPrice} {product.currency} / stack 64</span>
-      )}
-    </span>
+  <div class="product-card__trades">
+    {product.sell && (
+      <div class="trade-row">
+        <div class="trade-row__left">
+          <span class="trade-tag trade-tag--sell">vende</span>
+          <span class={`stock ${product.sell.quantity === 0 ? 'stock--zero' : ''}`}>
+            {product.sell.quantity === 0 ? 'esaurito' : `${product.sell.quantity} disp.`}
+          </span>
+        </div>
+        <span class="price">
+          {product.sell.unitPrice !== null && (
+            <span class="price__unit">{product.sell.unitPrice} {product.currency}<span style="color:var(--text-faint); font-weight:400;"> /pz</span></span>
+          )}
+          {product.sell.stackPrice !== null && (
+            <span class="price__stack">{product.sell.stackPrice} {product.currency} / stack 64</span>
+          )}
+        </span>
+      </div>
+    )}
+    {product.buy && (
+      <div class="trade-row">
+        <div class="trade-row__left">
+          <span class="trade-tag trade-tag--buy">compra</span>
+          <span class="stock">richiede {product.buy.quantity}</span>
+        </div>
+        <span class="price">
+          {product.buy.unitPrice !== null && (
+            <span class="price__unit">{product.buy.unitPrice} {product.currency}<span style="color:var(--text-faint); font-weight:400;"> /pz</span></span>
+          )}
+          {product.buy.stackPrice !== null && (
+            <span class="price__stack">{product.buy.stackPrice} {product.currency} / stack 64</span>
+          )}
+        </span>
+      </div>
+    )}
   </div>
 </a>

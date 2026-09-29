@@ -2,7 +2,10 @@ import type { Shop, Product } from './types';
 
 // Dati di esempio, solo per progettare l'interfaccia.
 // In futuro questo file verra' sostituito da chiamate al database Neon
-// (alimentato dalla pipeline Discord -> GitHub Action).
+// (alimentato dalla pipeline Discord -> GitHub Action). Il catalogo
+// oggetti invece resta statico: vedi src/lib/items.ts + src/data/items.json.
+
+const CURRENCY = 'Essence';
 
 export const shops: Shop[] = [
   {
@@ -83,7 +86,7 @@ export const shops: Shop[] = [
     z: -400,
     dimension: 'overworld',
     description:
-      "Libri incantati e materiali per l'incantamento: lapislazzuli, occhi dell'ender e libri su ordinazione.",
+      "Libri incantati e materiali per l'incantamento: lapislazuli, occhi dell'ender e libri su ordinazione.",
     directions:
       "Torre viola visibile dallo spawn a est, in cima alla collina. Usa la rampa di elytra o sali per la scala esterna.",
     online: true,
@@ -92,39 +95,68 @@ export const shops: Shop[] = [
 ];
 
 export const products: Product[] = [
-  // Emporio di Redcliff
-  { slug: 'assi-quercia', name: 'Assi di quercia', category: 'legno', stock: 4032, unitPrice: 0.2, stackPrice: 8, currency: 'smeraldi', shopSlug: 'emporio-redcliff' },
-  { slug: 'vetro', name: 'Vetro', category: 'blocco', stock: 1728, unitPrice: 0.3, stackPrice: 12, currency: 'smeraldi', shopSlug: 'emporio-redcliff' },
-  { slug: 'lana-rossa', name: 'Lana rossa', category: 'blocco', stock: 512, unitPrice: 0.5, stackPrice: 24, currency: 'smeraldi', shopSlug: 'emporio-redcliff' },
-  { slug: 'rotaie', name: 'Rotaie', category: 'strumento', stock: 960, unitPrice: 0.4, stackPrice: null, currency: 'smeraldi', shopSlug: 'emporio-redcliff' },
+  // Emporio di Redcliff — vende materiali da costruzione
+  { slug: 'assi-quercia', minecraftId: 'minecraft:oak_planks', shopSlug: 'emporio-redcliff', currency: CURRENCY,
+    sell: { unitPrice: 0.2, stackPrice: 8, quantity: 4032 }, buy: null },
+  { slug: 'vetro', minecraftId: 'minecraft:glass', shopSlug: 'emporio-redcliff', currency: CURRENCY,
+    sell: { unitPrice: 0.3, stackPrice: 12, quantity: 1728 }, buy: null },
+  { slug: 'lana-rossa', minecraftId: 'minecraft:red_wool', shopSlug: 'emporio-redcliff', currency: CURRENCY,
+    sell: { unitPrice: 0.5, stackPrice: 24, quantity: 512 }, buy: null },
+  { slug: 'rotaie', minecraftId: 'minecraft:rail', shopSlug: 'emporio-redcliff', currency: CURRENCY,
+    sell: { unitPrice: 0.4, stackPrice: null, quantity: 960 }, buy: null },
 
-  // Bazaar del Nether
-  { slug: 'quarzo-nether', name: 'Quarzo del Nether', category: 'minerale', stock: 2240, unitPrice: 0.6, stackPrice: 28, currency: 'smeraldi', shopSlug: 'bazaar-nether' },
-  { slug: 'blaze-rod', name: 'Blaze rod', category: 'raro', stock: 96, unitPrice: 3.5, stackPrice: 190, currency: 'smeraldi', shopSlug: 'bazaar-nether' },
-  { slug: 'frammento-netherite', name: 'Frammento di netherite', category: 'raro', stock: 12, unitPrice: 18, stackPrice: null, currency: 'smeraldi', shopSlug: 'bazaar-nether' },
-  { slug: 'ghisa-antica', name: 'Ghisa antica grezza', category: 'minerale', stock: 64, unitPrice: 9, stackPrice: 520, currency: 'smeraldi', shopSlug: 'bazaar-nether' },
+  // Bazaar del Nether — vende materiali rari, e ricompra i frammenti di netherite
+  { slug: 'quarzo-nether', minecraftId: 'minecraft:quartz', shopSlug: 'bazaar-nether', currency: CURRENCY,
+    sell: { unitPrice: 0.6, stackPrice: 28, quantity: 2240 }, buy: null },
+  { slug: 'blaze-rod', minecraftId: 'minecraft:blaze_rod', shopSlug: 'bazaar-nether', currency: CURRENCY,
+    sell: { unitPrice: 3.5, stackPrice: 190, quantity: 96 }, buy: null },
+  { slug: 'frammento-netherite', minecraftId: 'minecraft:netherite_scrap', shopSlug: 'bazaar-nether', currency: CURRENCY,
+    sell: { unitPrice: 22, stackPrice: null, quantity: 6 },
+    buy: { unitPrice: 18, stackPrice: null, quantity: 64 } },
+  { slug: 'ghisa-antica', minecraftId: 'minecraft:ancient_debris', shopSlug: 'bazaar-nether', currency: CURRENCY,
+    sell: { unitPrice: 9, stackPrice: 520, quantity: 64 },
+    buy: { unitPrice: 6.5, stackPrice: 380, quantity: 128 } },
 
-  // Magazzino dell'Ender
-  { slug: 'elitra', name: 'Elitra', category: 'raro', stock: 1, unitPrice: 260, stackPrice: null, currency: 'smeraldi', shopSlug: 'magazzino-ender' },
-  { slug: 'perla-ender', name: "Perla dell'Ender", category: 'raro', stock: 48, unitPrice: 4.2, stackPrice: 250, currency: 'smeraldi', shopSlug: 'magazzino-ender' },
-  { slug: 'totem-immortalita', name: "Totem dell'immortalita'", category: 'raro', stock: 3, unitPrice: 95, stackPrice: null, currency: 'smeraldi', shopSlug: 'magazzino-ender' },
+  // Magazzino dell'Ender — solo vendita, oggetti rari
+  { slug: 'elitra', minecraftId: 'minecraft:elytra', shopSlug: 'magazzino-ender', currency: CURRENCY,
+    sell: { unitPrice: 260, stackPrice: null, quantity: 1 }, buy: null },
+  { slug: 'perla-ender', minecraftId: 'minecraft:ender_pearl', shopSlug: 'magazzino-ender', currency: CURRENCY,
+    sell: { unitPrice: 4.2, stackPrice: 250, quantity: 48 },
+    buy: { unitPrice: 3, stackPrice: 180, quantity: 320 } },
+  { slug: 'totem-immortalita', minecraftId: 'minecraft:totem_of_undying', shopSlug: 'magazzino-ender', currency: CURRENCY,
+    sell: { unitPrice: 95, stackPrice: null, quantity: 3 }, buy: null },
 
-  // Fattoria del Grano d'Oro
-  { slug: 'frumento', name: 'Frumento', category: 'cibo', stock: 3200, unitPrice: 0.1, stackPrice: 4, currency: 'smeraldi', shopSlug: 'fattoria-grano-oro' },
-  { slug: 'canna-zucchero', name: 'Canna da zucchero', category: 'cibo', stock: 1856, unitPrice: 0.15, stackPrice: 6, currency: 'smeraldi', shopSlug: 'fattoria-grano-oro' },
-  { slug: 'fave-cacao', name: 'Fave di cacao', category: 'cibo', stock: 640, unitPrice: 0.3, stackPrice: 14, currency: 'smeraldi', shopSlug: 'fattoria-grano-oro' },
-  { slug: 'carote', name: 'Carote', category: 'cibo', stock: 0, unitPrice: 0.1, stackPrice: 4, currency: 'smeraldi', shopSlug: 'fattoria-grano-oro' },
+  // Fattoria del Grano d'Oro — vende e ricompra prodotti agricoli
+  { slug: 'frumento', minecraftId: 'minecraft:wheat', shopSlug: 'fattoria-grano-oro', currency: CURRENCY,
+    sell: { unitPrice: 0.1, stackPrice: 4, quantity: 3200 },
+    buy: { unitPrice: 0.05, stackPrice: 2, quantity: 5000 } },
+  { slug: 'canna-zucchero', minecraftId: 'minecraft:sugar_cane', shopSlug: 'fattoria-grano-oro', currency: CURRENCY,
+    sell: { unitPrice: 0.15, stackPrice: 6, quantity: 1856 }, buy: null },
+  { slug: 'fave-cacao', minecraftId: 'minecraft:cocoa_beans', shopSlug: 'fattoria-grano-oro', currency: CURRENCY,
+    sell: { unitPrice: 0.3, stackPrice: 14, quantity: 640 }, buy: null },
+  { slug: 'carote', minecraftId: 'minecraft:carrot', shopSlug: 'fattoria-grano-oro', currency: CURRENCY,
+    sell: { unitPrice: 0.1, stackPrice: 4, quantity: 0 },
+    buy: { unitPrice: 0.05, stackPrice: 2, quantity: 2000 } },
 
-  // Ferramenta di Deepslate
-  { slug: 'ferro-grezzo', name: 'Ferro grezzo', category: 'minerale', stock: 1280, unitPrice: 1.2, stackPrice: 60, currency: 'smeraldi', shopSlug: 'ferramenta-deepslate' },
-  { slug: 'rame-grezzo', name: 'Rame grezzo', category: 'minerale', stock: 2048, unitPrice: 0.5, stackPrice: 22, currency: 'smeraldi', shopSlug: 'ferramenta-deepslate' },
-  { slug: 'oro-grezzo', name: 'Oro grezzo', category: 'minerale', stock: 384, unitPrice: 2.4, stackPrice: 130, currency: 'smeraldi', shopSlug: 'ferramenta-deepslate' },
-  { slug: 'diamante-grezzo', name: 'Diamante grezzo', category: 'gemma', stock: 18, unitPrice: 14, stackPrice: null, currency: 'smeraldi', shopSlug: 'ferramenta-deepslate' },
+  // Ferramenta di Deepslate — vende e ricompra minerali grezzi
+  { slug: 'ferro-grezzo', minecraftId: 'minecraft:raw_iron', shopSlug: 'ferramenta-deepslate', currency: CURRENCY,
+    sell: { unitPrice: 1.2, stackPrice: 60, quantity: 1280 },
+    buy: { unitPrice: 0.9, stackPrice: 45, quantity: 3000 } },
+  { slug: 'rame-grezzo', minecraftId: 'minecraft:raw_copper', shopSlug: 'ferramenta-deepslate', currency: CURRENCY,
+    sell: { unitPrice: 0.5, stackPrice: 22, quantity: 2048 }, buy: null },
+  { slug: 'oro-grezzo', minecraftId: 'minecraft:raw_gold', shopSlug: 'ferramenta-deepslate', currency: CURRENCY,
+    sell: { unitPrice: 2.4, stackPrice: 130, quantity: 384 }, buy: null },
+  { slug: 'diamante-grezzo', minecraftId: 'minecraft:diamond', shopSlug: 'ferramenta-deepslate', currency: CURRENCY,
+    sell: { unitPrice: 14, stackPrice: null, quantity: 18 },
+    buy: { unitPrice: 11, stackPrice: null, quantity: 200 } },
 
-  // Empireo degli Incantesimi
-  { slug: 'lapislazzuli', name: 'Lapislazzuli', category: 'gemma', stock: 960, unitPrice: 0.4, stackPrice: 20, currency: 'smeraldi', shopSlug: 'empireo-incantesimi' },
-  { slug: 'occhio-ender', name: "Occhio dell'Ender", category: 'raro', stock: 32, unitPrice: 5, stackPrice: 300, currency: 'smeraldi', shopSlug: 'empireo-incantesimi' },
-  { slug: 'libro-incantato', name: 'Libro incantato (su ordinazione)', category: 'raro', stock: 6, unitPrice: 40, stackPrice: null, currency: 'smeraldi', shopSlug: 'empireo-incantesimi' },
+  // Empireo degli Incantesimi — vende materiali da incantamento
+  { slug: 'lapislazuli', minecraftId: 'minecraft:lapis_lazuli', shopSlug: 'empireo-incantesimi', currency: CURRENCY,
+    sell: { unitPrice: 0.4, stackPrice: 20, quantity: 960 }, buy: null },
+  { slug: 'occhio-ender', minecraftId: 'minecraft:ender_eye', shopSlug: 'empireo-incantesimi', currency: CURRENCY,
+    sell: { unitPrice: 5, stackPrice: 300, quantity: 32 }, buy: null },
+  { slug: 'libro-incantato', minecraftId: 'minecraft:enchanted_book', shopSlug: 'empireo-incantesimi', currency: CURRENCY,
+    sell: { unitPrice: 40, stackPrice: null, quantity: 6 }, buy: null },
 ];
 
 export function getShopBySlug(slug: string): Shop | undefined {

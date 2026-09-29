@@ -2,6 +2,7 @@
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import Topbar from '@/components/Topbar.astro';
 import { products, getProductBySlug, getShopBySlug } from '@/lib/mockData';
+import { getCatalogItem } from '@/lib/items';
 
 export function getStaticPaths() {
   return products.map((p) => ({ params: { slug: p.slug } }));
@@ -11,48 +12,77 @@ const { slug } = Astro.params;
 const product = getProductBySlug(slug as string);
 if (!product) return Astro.redirect('/prodotti');
 const shop = getShopBySlug(product.shopSlug);
-
-const catColors: Record<string, string> = {
-  minerale: 'var(--cat-minerale)',
-  gemma: 'var(--cat-gemma)',
-  cibo: 'var(--cat-cibo)',
-  legno: 'var(--cat-legno)',
-  redstone: 'var(--cat-redstone)',
-  blocco: 'var(--cat-blocco)',
-  raro: 'var(--cat-raro)',
-  strumento: 'var(--cat-strumento)',
-};
-const swatch = catColors[product.category] ?? 'var(--cat-blocco)';
+const item = getCatalogItem(product.minecraftId);
+const displayName = item?.name ?? product.minecraftId;
 ---
-<BaseLayout title={product.name} activeSection="prodotti">
-  <Topbar slot="topbar" title={product.name} />
+<BaseLayout title={displayName} activeSection="prodotti">
+  <Topbar slot="topbar" title={displayName} />
 
-  <p class="breadcrumb"><a href="/prodotti">Prodotti</a> / {product.name}</p>
+  <p class="breadcrumb"><a href="/prodotti">Prodotti</a> / {displayName}</p>
 
   <div class="panel product-detail__panel">
-    <div class="block-icon block-icon--lg" style={`--swatch: ${swatch}`}></div>
+    <img class="item-icon item-icon--lg" src={item?.image_url} alt={displayName} />
     <div style="flex:1;">
-      <h1 style="margin-bottom:4px;">{product.name}</h1>
-      <div class="widget__meta" style="text-transform:capitalize;">{product.category}</div>
+      <h1 style="margin-bottom:4px;">{displayName}</h1>
+      <div class="widget__meta">{item?.category ?? 'categoria sconosciuta'} · {product.minecraftId}</div>
 
-      <div class="product-detail__prices">
-        {product.unitPrice !== null && (
-          <div class="product-detail__price-block">
-            <span class="label">prezzo a unità</span>
-            <span class="value">{product.unitPrice} {product.currency}</span>
+      <div class="trade-columns">
+        <div class="trade-panel">
+          <div class="trade-panel__head">
+            <span class="trade-tag trade-tag--sell">vende</span>
           </div>
-        )}
-        {product.stackPrice !== null && (
-          <div class="product-detail__price-block">
-            <span class="label">prezzo a stack (64)</span>
-            <span class="value">{product.stackPrice} {product.currency}</span>
+          {product.sell ? (
+            <div class="trade-panel__fields">
+              {product.sell.unitPrice !== null && (
+                <div>
+                  <span class="field-label">prezzo a unità</span>
+                  <span class="field-value">{product.sell.unitPrice} {product.currency}</span>
+                </div>
+              )}
+              {product.sell.stackPrice !== null && (
+                <div>
+                  <span class="field-label">prezzo a stack (64)</span>
+                  <span class="field-value">{product.sell.stackPrice} {product.currency}</span>
+                </div>
+              )}
+              <div>
+                <span class="field-label">disponibilità</span>
+                <span class="field-value" style={product.sell.quantity === 0 ? 'color:var(--redstone);' : ''}>
+                  {product.sell.quantity === 0 ? 'esaurito' : product.sell.quantity}
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div class="trade-panel--empty">Questo negozio non vende questo oggetto.</div>
+          )}
+        </div>
+
+        <div class="trade-panel">
+          <div class="trade-panel__head">
+            <span class="trade-tag trade-tag--buy">compra</span>
           </div>
-        )}
-        <div class="product-detail__price-block">
-          <span class="label">disponibilità</span>
-          <span class={`value ${product.stock === 0 ? 'lowstock-qty--zero' : ''}`} style={product.stock===0 ? '' : 'color:var(--text);'}>
-            {product.stock === 0 ? 'esaurito' : product.stock}
-          </span>
+          {product.buy ? (
+            <div class="trade-panel__fields">
+              {product.buy.unitPrice !== null && (
+                <div>
+                  <span class="field-label">prezzo a unità</span>
+                  <span class="field-value">{product.buy.unitPrice} {product.currency}</span>
+                </div>
+              )}
+              {product.buy.stackPrice !== null && (
+                <div>
+                  <span class="field-label">prezzo a stack (64)</span>
+                  <span class="field-value">{product.buy.stackPrice} {product.currency}</span>
+                </div>
+              )}
+              <div>
+                <span class="field-label">quantità richiesta</span>
+                <span class="field-value">{product.buy.quantity}</span>
+              </div>
+            </div>
+          ) : (
+            <div class="trade-panel--empty">Questo negozio non ricompra questo oggetto.</div>
+          )}
         </div>
       </div>
     </div>

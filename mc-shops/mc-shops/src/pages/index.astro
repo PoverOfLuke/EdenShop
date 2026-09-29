@@ -2,15 +2,16 @@
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import Topbar from '@/components/Topbar.astro';
 import { shops, products } from '@/lib/mockData';
+import { getCatalogItem } from '@/lib/items';
 
 const onlineShops = shops.filter((s) => s.online).length;
-const outOfStock = products.filter((p) => p.stock === 0).length;
+const outOfStock = products.filter((p) => p.sell && p.sell.quantity === 0).length;
 const lowStock = products
-  .filter((p) => p.stock > 0 && p.stock <= 20)
-  .sort((a, b) => a.stock - b.stock);
+  .filter((p) => p.sell && p.sell.quantity > 0 && p.sell.quantity <= 20)
+  .sort((a, b) => (a.sell?.quantity ?? 0) - (b.sell?.quantity ?? 0));
 
 const totalValue = products.reduce(
-  (sum, p) => sum + (p.unitPrice ?? 0) * p.stock,
+  (sum, p) => sum + (p.sell?.unitPrice ?? 0) * (p.sell?.quantity ?? 0),
   0
 );
 
@@ -25,15 +26,13 @@ function timeAgo(iso: string) {
   return `${diffH} h fa`;
 }
 ---
-<BaseLayout title="Dashboard" activeSection="dashboard">
-  <Topbar slot="topbar" title="Dashboard">
-    <a class="btn btn--primary" href="/negozi">Vai ai negozi</a>
-  </Topbar>
+<BaseLayout title="Home" activeSection="home">
+  <Topbar slot="topbar" title="Home" />
 
   <p class="page-lede">
-    Panoramica dei negozi collegati al server. I dati arrivano dagli aggiornamenti
-    inviati su Discord e sincronizzati nel database — qui sotto sono mostrati
-    valori di esempio.
+    Panoramica dei negozi collegati al server EdenShop. I dati arrivano dagli
+    aggiornamenti inviati su Discord e sincronizzati nel database — qui sotto
+    sono mostrati valori di esempio.
   </p>
 
   <section class="widget-grid" aria-label="Statistiche generali">
@@ -48,8 +47,8 @@ function timeAgo(iso: string) {
       <div class="widget__meta">tra tutti i negozi</div>
     </div>
     <div class="widget">
-      <div class="widget__label">Valore totale stock</div>
-      <div class="widget__value">{totalValue.toFixed(1)}<span style="color:var(--text-faint); font-size:15px;"> smeraldi</span></div>
+      <div class="widget__label">Valore totale in vendita</div>
+      <div class="widget__value">{totalValue.toFixed(1)}<span style="color:var(--text-faint); font-size:15px;"> Essence</span></div>
       <div class="widget__meta">stima a prezzo unitario</div>
     </div>
     <div class="widget">
@@ -59,7 +58,7 @@ function timeAgo(iso: string) {
     </div>
   </section>
 
-  <div class="dashboard-columns">
+  <div class="home-columns">
     <div class="panel">
       <div class="panel__title">
         Attività recente
@@ -86,8 +85,8 @@ function timeAgo(iso: string) {
           <ul class="lowstock-list">
             {lowStock.slice(0, 5).map((p) => (
               <li>
-                <a href={`/prodotti/${p.slug}`}>{p.name}</a>
-                <span class="lowstock-qty lowstock-qty--zero">{p.stock} rimasti</span>
+                <a href={`/prodotti/${p.slug}`}>{getCatalogItem(p.minecraftId)?.name ?? p.minecraftId}</a>
+                <span class="lowstock-qty lowstock-qty--zero">{p.sell?.quantity} rimasti</span>
               </li>
             ))}
           </ul>
