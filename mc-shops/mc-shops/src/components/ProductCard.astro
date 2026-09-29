@@ -11,17 +11,25 @@ const displayName = item?.name ?? product.minecraftId;
 ---
 <a
   class="product-card"
-  href={`/prodotti/${product.slug}`}
+  href={`/products/${product.slug}`}
   data-name={displayName.toLowerCase()}
   data-category={item?.category ?? ''}
   data-shop={product.shopSlug}
-  data-type={`${product.sell ? 'vende' : ''} ${product.buy ? 'compra' : ''}`.trim()}
+  data-type={`${product.sell ? 'sell' : ''} ${product.buy ? 'buy' : ''}`.trim()}
 >
   <div class="product-card__top">
-    <img class="item-icon" src={item?.image_url} alt={displayName} loading="lazy" />
+    <span class="item-icon-wrap">
+      <img
+        class="item-icon"
+        src={item?.image_url}
+        alt={displayName}
+        loading="lazy"
+        onerror="this.style.display='none';this.parentElement.classList.add('item-icon-wrap--missing')"
+      />
+    </span>
     <div>
       <div class="product-card__name">{displayName}</div>
-      <div class="product-card__shop">{shop?.name ?? 'negozio sconosciuto'}</div>
+      <div class="product-card__shop">{shop?.name ?? 'unknown shop'}</div>
     </div>
   </div>
 
@@ -29,17 +37,17 @@ const displayName = item?.name ?? product.minecraftId;
     {product.sell && (
       <div class="trade-row">
         <div class="trade-row__left">
-          <span class="trade-tag trade-tag--sell">vende</span>
+          <span class="trade-tag trade-tag--sell">sells</span>
           <span class={`stock ${product.sell.quantity === 0 ? 'stock--zero' : ''}`}>
-            {product.sell.quantity === 0 ? 'esaurito' : `${product.sell.quantity} disp.`}
+            {product.sell.quantity === 0 ? 'out of stock' : `${product.sell.quantity} in stock`}
           </span>
         </div>
         <span class="price">
           {product.sell.unitPrice !== null && (
-            <span class="price__unit">{product.sell.unitPrice} {product.currency}<span style="color:var(--text-faint); font-weight:400;"> /pz</span></span>
+            <span class="price__unit">{product.sell.unitPrice} {product.currency}<span style="color:var(--text-faint); font-weight:400;"> /ea</span></span>
           )}
           {product.sell.stackPrice !== null && (
-            <span class="price__stack">{product.sell.stackPrice} {product.currency} / stack 64</span>
+            <span class="price__stack">{product.sell.stackPrice} {product.currency} / stack of 64</span>
           )}
         </span>
       </div>
@@ -47,15 +55,15 @@ const displayName = item?.name ?? product.minecraftId;
     {product.buy && (
       <div class="trade-row">
         <div class="trade-row__left">
-          <span class="trade-tag trade-tag--buy">compra</span>
-          <span class="stock">richiede {product.buy.quantity}</span>
+          <span class="trade-tag trade-tag--buy">buys</span>
+          <span class="stock">wants {product.buy.quantity}</span>
         </div>
         <span class="price">
           {product.buy.unitPrice !== null && (
-            <span class="price__unit">{product.buy.unitPrice} {product.currency}<span style="color:var(--text-faint); font-weight:400;"> /pz</span></span>
+            <span class="price__unit">{product.buy.unitPrice} {product.currency}<span style="color:var(--text-faint); font-weight:400;"> /ea</span></span>
           )}
           {product.buy.stackPrice !== null && (
-            <span class="price__stack">{product.buy.stackPrice} {product.currency} / stack 64</span>
+            <span class="price__stack">{product.buy.stackPrice} {product.currency} / stack of 64</span>
           )}
         </span>
       </div>

@@ -4,17 +4,17 @@ import '@/styles/global.css';
 
 interface Props {
   title: string;
-  activeSection?: 'home' | 'negozi' | 'prodotti' | 'login';
+  activeSection?: 'home' | 'shops' | 'products' | 'login';
 }
 
 const { title, activeSection = 'home' } = Astro.props as Props;
 ---
-<html lang="it">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title} · EdenShop</title>
-    <meta name="description" content="Pannello di gestione dei negozi del server Minecraft EdenShop." />
+    <meta name="description" content="Management dashboard for the EdenShop Minecraft server's shops." />
   </head>
   <body>
     <div class="site-shell">

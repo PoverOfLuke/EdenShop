@@ -1,8 +1,8 @@
 import itemsData from '@/data/items.json';
 import type { CatalogItem } from './types';
 
-// Catalogo statico Minecraft 1.21.11 (items.json).
-// NON contiene dati di negozio: solo anagrafica oggetto.
+// Static Minecraft 1.21.11 catalog (items.json).
+// Contains no shop data: item registry only.
 export const catalogItems = itemsData as CatalogItem[];
 
 export function getCatalogItem(minecraftId: string): CatalogItem | undefined {

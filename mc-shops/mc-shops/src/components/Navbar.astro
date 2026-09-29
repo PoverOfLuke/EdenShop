@@ -1,13 +1,13 @@
 ---
 interface Props {
-  active: 'home' | 'negozi' | 'prodotti' | 'login';
+  active: 'home' | 'shops' | 'products' | 'login';
 }
 const { active } = Astro.props as Props;
 
 const links = [
   { key: 'home', href: '/', label: 'Home' },
-  { key: 'negozi', href: '/negozi', label: 'Negozi' },
-  { key: 'prodotti', href: '/prodotti', label: 'Prodotti' },
+  { key: 'shops', href: '/shops', label: 'Shops' },
+  { key: 'products', href: '/products', label: 'Products' },
 ] as const;
 ---
 <header class="navbar">
@@ -16,7 +16,7 @@ const links = [
       <span class="brand-mark"></span>
       <span class="brand-text">EdenShop</span>
     </a>
-    <nav class="navbar__links" aria-label="Navigazione principale">
+    <nav class="navbar__links" aria-label="Main navigation">
       {links.map((l) => (
         <a
           class="nav-link"
@@ -32,8 +32,8 @@ const links = [
   <div class="navbar__right">
     <span class="navbar__status">
       <span class="status-dot"></span>
-      dati aggiornati via Discord
+      data synced via Discord
     </span>
-    <a class="btn btn--primary" href="/login">Login venditori</a>
+    <a class="btn btn--primary" href="/login">Vendor Login</a>
   </div>
 </header>

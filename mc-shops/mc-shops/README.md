@@ -5,6 +5,10 @@ gestione dei negozi del server. I dati dei negozi/prodotti sono ancora
 di esempio in `src/lib/mockData.ts`; il **catalogo oggetti Minecraft**
 (`src/data/items.json` + `public/items/*.png`) è invece già reale.
 
+> Nota: l'interfaccia del sito (testi, pagine, URL) è in inglese; questo
+> README resta in italiano perché è documentazione di sviluppo, non
+> contenuto del sito.
+
 ## Struttura
 
 ```
@@ -18,10 +22,10 @@ src/
   pages/
     index.astro                Home con i widget
     login.astro                accesso venditori (solo form, non collegato)
-    negozi/index.astro         elenco negozi
-    negozi/[slug].astro        dettaglio negozio + suoi prodotti
-    prodotti/index.astro       elenco prodotti con ricerca e filtri
-    prodotti/[slug].astro      dettaglio prodotto, con link al negozio
+    shops/index.astro          elenco negozi
+    shops/[slug].astro         dettaglio negozio + suoi prodotti
+    products/index.astro       elenco prodotti con ricerca e filtri
+    products/[slug].astro      dettaglio prodotto, con link al negozio
 public/
   items/*.png                  icone del catalogo, una per oggetto
 ```
@@ -53,10 +57,10 @@ presente (non serve che ci siano entrambe). La valuta attuale è
   valore stimato in vendita, prodotti esauriti) più attività recente e
   scorte basse. Navbar orizzontale in cima, con "Login venditori" sempre
   visibile a destra.
-- **Negozi** (`/negozi`, `/negozi/[slug]`): elenco negozi; ogni negozio ha
+- **Negozi** (`/shops`, `/shops/[slug]`): elenco negozi; ogni negozio ha
   coordinate (X/Z), descrizione, indicazioni per raggiungerlo e la sua
   lista prodotti.
-- **Prodotti** (`/prodotti`, `/prodotti/[slug]`): elenco di tutti i
+- **Prodotti** (`/products`, `/products/[slug]`): elenco di tutti i
   prodotti, con ricerca testuale e filtri per categoria, negozio e tipo
   di offerta (vende/compra). Ogni prodotto mostra l'icona reale
   dell'oggetto (da `items.json`), i prezzi di vendita e/o acquisto, e un

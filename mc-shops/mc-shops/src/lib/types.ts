@@ -1,12 +1,12 @@
-// Tipi condivisi.
+// Shared types.
 //
-// Il catalogo oggetti (src/data/items.json) e' l'anagrafica statica di
-// Minecraft 1.21.11: nome, minecraft_id, categoria, immagine. Non va
-// duplicato ne' salvato su Neon.
+// The item catalog (src/data/items.json) is the static Minecraft 1.21.11
+// registry: name, minecraft_id, category, image. It is NOT duplicated or
+// stored in Neon.
 //
-// Neon conterra' invece i dati dinamici dei negozi/mercanti (che negozio
-// vende/compra cosa, a che prezzo, quanta disponibilita'). Il collegamento
-// tra le due cose e' sempre "minecraft_id".
+// Neon holds the dynamic shop/merchant data instead (which shop sells or
+// buys what, at what price, with what stock). The link between the two is
+// always "minecraft_id".
 
 export interface CatalogItem {
   name: string;
@@ -15,35 +15,35 @@ export interface CatalogItem {
   image_url: string;
 }
 
-/** Prezzo + quantita' per una singola direzione (vendita oppure acquisto). */
+/** Price + quantity for a single direction (selling or buying). */
 export interface TradeOffer {
-  /** Prezzo per singola unita', in Essence */
+  /** Price per single unit, in Essence */
   unitPrice: number | null;
-  /** Prezzo per stack da 64, se il venditore lo configura */
+  /** Price per stack of 64, if the seller configures one */
   stackPrice: number | null;
-  /** Vendita: quanto ne ha disponibile. Acquisto: quanto ne vuole. */
+  /** Selling: how many are available. Buying: how many are wanted. */
   quantity: number;
 }
 
 export interface Product {
   slug: string;
-  /** Collega il prodotto al catalogo statico (items.json) */
+  /** Links the product to the static catalog (items.json) */
   minecraftId: string;
   shopSlug: string;
   currency: string;
-  /** Il negozio vende questo oggetto ai giocatori. Null se non lo vende. */
+  /** The shop sells this item to players. Null if it doesn't sell it. */
   sell: TradeOffer | null;
-  /** Il negozio compra questo oggetto dai giocatori. Null se non lo compra. */
+  /** The shop buys this item from players. Null if it doesn't buy it. */
   buy: TradeOffer | null;
-  // Regola di pubblicazione: un prodotto e' pubblicabile solo se almeno
-  // uno tra "sell" e "buy" e' presente (non entrambi null).
+  // Publishing rule: a product can only be published if at least one of
+  // "sell" and "buy" is present (not both null).
 }
 
 export interface Shop {
   slug: string;
   name: string;
   owner: string;
-  /** Coordinate nel mondo Minecraft */
+  /** Coordinates in the Minecraft world */
   x: number;
   z: number;
   dimension: 'overworld' | 'nether' | 'end';

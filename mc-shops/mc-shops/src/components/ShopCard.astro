@@ -6,11 +6,11 @@ interface Props { shop: Shop }
 const { shop } = Astro.props as Props;
 const productCount = getProductsByShop(shop.slug).length;
 ---
-<a class="shop-card" href={`/negozi/${shop.slug}`}>
+<a class="shop-card" href={`/shops/${shop.slug}`}>
   <div class="shop-card__head">
     <div>
       <div class="shop-card__name">{shop.name}</div>
-      <div class="shop-card__owner">gestito da {shop.owner}</div>
+      <div class="shop-card__owner">run by {shop.owner}</div>
     </div>
     <span class={`badge ${shop.online ? 'badge--online' : 'badge--offline'}`}>
       {shop.online ? 'online' : 'offline'}
@@ -20,6 +20,6 @@ const productCount = getProductsByShop(shop.slug).length;
   <p class="shop-card__desc">{shop.description}</p>
 
   <div class="shop-card__coords">
-    X {shop.x} · Z {shop.z} · {shop.dimension} · {productCount} prodotti
+    X {shop.x} · Z {shop.z} · {shop.dimension} · {productCount} products
   </div>
 </a>

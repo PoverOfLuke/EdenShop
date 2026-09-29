@@ -10,23 +10,23 @@ export function getStaticPaths() {
 
 const { slug } = Astro.params;
 const shop = getShopBySlug(slug as string);
-if (!shop) return Astro.redirect('/negozi');
+if (!shop) return Astro.redirect('/shops');
 const shopProducts = getProductsByShop(shop.slug);
 ---
-<BaseLayout title={shop.name} activeSection="negozi">
+<BaseLayout title={shop.name} activeSection="shops">
   <Topbar slot="topbar" title={shop.name}>
     <span class={`badge ${shop.online ? 'badge--online' : 'badge--offline'}`}>
       {shop.online ? 'online' : 'offline'}
     </span>
   </Topbar>
 
-  <p class="breadcrumb"><a href="/negozi">Negozi</a> / {shop.name}</p>
+  <p class="breadcrumb"><a href="/shops">Shops</a> / {shop.name}</p>
 
   <div class="detail-head">
     <div>
       <h1 style="margin-bottom:2px;">{shop.name}</h1>
       <div class="detail-head__meta">
-        gestito da {shop.owner}
+        run by {shop.owner}
         <span class="coord-chip">X {shop.x} · Z {shop.z} · {shop.dimension}</span>
       </div>
     </div>
@@ -34,24 +34,24 @@ const shopProducts = getProductsByShop(shop.slug);
 
   <div class="info-columns">
     <div class="panel">
-      <div class="panel__title">Descrizione</div>
+      <div class="panel__title">Description</div>
       <p>{shop.description}</p>
     </div>
     <div class="panel">
-      <div class="panel__title">Come raggiungerlo</div>
+      <div class="panel__title">How to get there</div>
       <p>{shop.directions}</p>
     </div>
   </div>
 
   <div class="section-heading">
-    <h2>Prodotti del negozio</h2>
-    <span class="section-heading__count">{shopProducts.length} articoli</span>
+    <h2>Shop products</h2>
+    <span class="section-heading__count">{shopProducts.length} items</span>
   </div>
 
   {shopProducts.length === 0 ? (
     <div class="empty-state">
       <div class="empty-state__icon"></div>
-      Nessun prodotto in vendita al momento.
+      No products for sale right now.
     </div>
   ) : (
     <div class="product-grid">

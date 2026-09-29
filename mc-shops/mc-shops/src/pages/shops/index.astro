@@ -4,16 +4,16 @@ import Topbar from '@/components/Topbar.astro';
 import ShopCard from '@/components/ShopCard.astro';
 import { shops } from '@/lib/mockData';
 ---
-<BaseLayout title="Negozi" activeSection="negozi">
-  <Topbar slot="topbar" title="Negozi" />
+<BaseLayout title="Shops" activeSection="shops">
+  <Topbar slot="topbar" title="Shops" />
 
   <p class="page-lede">
-    Tutti i negozi registrati sul server. Apri un negozio per vedere posizione,
-    descrizione, indicazioni e la sua lista prodotti.
+    All shops registered on the server. Open a shop to see its location,
+    description, directions and its product list.
   </p>
 
   <div class="toolbar">
-    <span class="widget__meta" style="font-size:13px;">{shops.length} negozi registrati</span>
+    <span class="widget__meta" style="font-size:13px;">{shops.length} registered shops</span>
   </div>
 
   <div class="shop-grid">
