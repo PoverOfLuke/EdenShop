@@ -89,14 +89,18 @@ async function requireApprovedMerchant(
 ): Promise<{ merchant: Merchant } | { response: Response }> {
   const merchantId = await getMerchantIdFromSession(request, env);
   if (merchantId === null) {
-    return { response: json({ error: 'not_authenticated' }, 401) };
+    return { response: json({ error: 'not_authenticated', reason: 'invalid_session' }, 401) };
   }
 
   const merchant = await getMerchantById(env, merchantId);
-  if (!merchant || !merchant.approved) {
+  if (!merchant) {
+    return { response: json({ error: 'not_authenticated', reason: 'merchant_not_found' }, 401) };
+  }
+
+  if (!merchant.approved) {
     const headers = new Headers();
     headers.set('Set-Cookie', clearSessionCookie());
-    return { response: json({ error: 'not_approved' }, 401, headers) };
+    return { response: json({ error: 'not_approved', reason: 'not_approved' }, 401, headers) };
   }
 
   return { merchant };

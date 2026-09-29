@@ -45,9 +45,10 @@ async function getHmacKey(secret: string): Promise<CryptoKey> {
 }
 
 /** Builds the Set-Cookie value for a fresh, signed session for this merchant. */
-export async function createSessionCookie(env: Env, merchantId: number): Promise<string> {
+export async function createSessionCookie(env: Env, merchantId: number | string): Promise<string> {
+  const mid = Number(merchantId);
   const payload: SessionPayload = {
-    mid: merchantId,
+    mid: Number.isFinite(mid) ? mid : 0,
     exp: Math.floor(Date.now() / 1000) + SESSION_MAX_AGE_SECONDS,
   };
   const payloadB64 = base64UrlEncode(new TextEncoder().encode(JSON.stringify(payload)));
@@ -95,11 +96,20 @@ export async function getMerchantIdFromSession(request: Request, env: Env): Prom
     );
     if (!valid) return null;
 
-    const payload = JSON.parse(new TextDecoder().decode(base64UrlDecode(payloadB64))) as SessionPayload;
-    if (typeof payload.mid !== 'number' || typeof payload.exp !== 'number') return null;
-    if (payload.exp < Math.floor(Date.now() / 1000)) return null;
+    const payload = JSON.parse(new TextDecoder().decode(base64UrlDecode(payloadB64))) as {
+      mid?: unknown;
+      exp?: unknown;
+    };
 
-    return payload.mid;
+    // Postgres numeric/bigint columns can reach us as strings, so both
+    // fields are coerced instead of type-checked. A merchant id that is not
+    // a whole number is never valid, so it is rejected here.
+    const mid = Number(payload.mid);
+    const exp = Number(payload.exp);
+    if (!Number.isSafeInteger(mid) || mid <= 0) return null;
+    if (!Number.isFinite(exp) || exp < Math.floor(Date.now() / 1000)) return null;
+
+    return mid;
   } catch {
     return null;
   }
