@@ -1,0 +1,203 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import Topbar from '@/components/Topbar.astro';
+---
+<BaseLayout title="My Shops" activeSection="dashboard">
+  <Topbar slot="topbar" title="My Shops" />
+
+  <p class="page-lede">
+    Shops linked to your Discord account. Edit their details or add a new one —
+    changes are saved straight to the database.
+  </p>
+
+  <div id="dashboard-guard" class="dashboard-empty">Checking your session…</div>
+
+  <div id="dashboard-content" hidden>
+    <div class="shops-toolbar">
+      <span class="widget__meta" id="shop-count" style="font-size:13px;"></span>
+      <button class="btn btn--primary" id="new-shop-toggle" type="button">+ New shop</button>
+    </div>
+
+    <div id="new-shop-panel" class="panel shop-edit" hidden>
+      <div class="shop-edit__title">New shop</div>
+      <form id="new-shop-form">
+        <div class="field"><label>Name</label><input name="name" type="text" required /></div>
+        <div class="field"><label>Slug (used in the URL)</label><input name="slug" type="text" placeholder="e.g. redcliff-emporium" required /></div>
+        <div class="shop-edit__row">
+          <div></div>
+          <div class="field"><label>X</label><input name="x" type="number" /></div>
+          <div class="field"><label>Z</label><input name="z" type="number" /></div>
+        </div>
+        <div class="field"><label>Description</label><textarea name="description"></textarea></div>
+        <div class="field"><label>Directions</label><textarea name="directions"></textarea></div>
+        <div class="shop-edit__actions">
+          <span class="shop-edit__status" id="new-shop-status"></span>
+          <button class="btn btn--primary" type="submit">Create shop</button>
+        </div>
+      </form>
+    </div>
+
+    <div id="shop-list" class="shop-edit-list"></div>
+    <div id="no-shops" class="dashboard-empty" hidden>You don't have any shops yet — create your first one above.</div>
+  </div>
+</BaseLayout>
+
+<script>
+  interface Shop {
+    id: number;
+    name: string;
+    slug: string;
+    x: number | null;
+    z: number | null;
+    description: string | null;
+    directions: string | null;
+  }
+
+  const guard = document.getElementById('dashboard-guard') as HTMLElement;
+  const content = document.getElementById('dashboard-content') as HTMLElement;
+  const shopList = document.getElementById('shop-list') as HTMLElement;
+  const noShops = document.getElementById('no-shops') as HTMLElement;
+  const shopCount = document.getElementById('shop-count') as HTMLElement;
+  const newShopToggle = document.getElementById('new-shop-toggle') as HTMLButtonElement;
+  const newShopPanel = document.getElementById('new-shop-panel') as HTMLElement;
+  const newShopForm = document.getElementById('new-shop-form') as HTMLFormElement;
+  const newShopStatus = document.getElementById('new-shop-status') as HTMLElement;
+
+  function buildShopCard(shop: Shop): HTMLElement {
+    const card = document.createElement('form');
+    card.className = 'panel shop-edit';
+    card.dataset.shopId = String(shop.id);
+
+    card.innerHTML = `
+      <div class="shop-edit__title">${escapeHtml(shop.name)}</div>
+      <div class="field"><label>Name</label><input name="name" type="text" value="${escapeAttr(shop.name)}" required /></div>
+      <div class="field"><label>Slug</label><input name="slug" type="text" value="${escapeAttr(shop.slug)}" required /></div>
+      <div class="shop-edit__row">
+        <div></div>
+        <div class="field"><label>X</label><input name="x" type="number" value="${shop.x ?? ''}" /></div>
+        <div class="field"><label>Z</label><input name="z" type="number" value="${shop.z ?? ''}" /></div>
+      </div>
+      <div class="field"><label>Description</label><textarea name="description">${escapeHtml(shop.description ?? '')}</textarea></div>
+      <div class="field"><label>Directions</label><textarea name="directions">${escapeHtml(shop.directions ?? '')}</textarea></div>
+      <div class="shop-edit__actions">
+        <span class="shop-edit__status"></span>
+        <button class="btn btn--primary" type="submit">Save changes</button>
+      </div>
+    `;
+
+    card.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const statusEl = card.querySelector('.shop-edit__status') as HTMLElement;
+      const payload = formToPayload(card);
+      statusEl.textContent = 'Saving…';
+      statusEl.className = 'shop-edit__status';
+
+      try {
+        const res = await fetch(`/api/merchant/shops/${shop.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          statusEl.textContent = data.error ?? 'Could not save.';
+          statusEl.className = 'shop-edit__status shop-edit__status--error';
+          return;
+        }
+        statusEl.textContent = 'Saved.';
+        statusEl.className = 'shop-edit__status shop-edit__status--ok';
+      } catch {
+        statusEl.textContent = 'Network error.';
+        statusEl.className = 'shop-edit__status shop-edit__status--error';
+      }
+    });
+
+    return card;
+  }
+
+  function formToPayload(form: HTMLFormElement) {
+    const data = new FormData(form);
+    return {
+      name: data.get('name'),
+      slug: data.get('slug'),
+      x: data.get('x'),
+      z: data.get('z'),
+      description: data.get('description'),
+      directions: data.get('directions'),
+    };
+  }
+
+  function escapeHtml(value: string): string {
+    const div = document.createElement('div');
+    div.textContent = value;
+    return div.innerHTML;
+  }
+
+  function escapeAttr(value: string): string {
+    return escapeHtml(value).replace(/"/g, '&quot;');
+  }
+
+  async function loadShops() {
+    const res = await fetch('/api/merchant/shops', { credentials: 'same-origin' });
+    if (!res.ok) throw new Error('unauthorized');
+    const data = (await res.json()) as { shops: Shop[] };
+
+    shopList.innerHTML = '';
+    shopCount.textContent = `${data.shops.length} shop${data.shops.length === 1 ? '' : 's'}`;
+    noShops.hidden = data.shops.length > 0;
+
+    for (const shop of data.shops) {
+      shopList.appendChild(buildShopCard(shop));
+    }
+  }
+
+  newShopToggle.addEventListener('click', () => {
+    newShopPanel.hidden = !newShopPanel.hidden;
+  });
+
+  newShopForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const payload = formToPayload(newShopForm);
+    newShopStatus.textContent = 'Creating…';
+    newShopStatus.className = 'shop-edit__status';
+
+    try {
+      const res = await fetch('/api/merchant/shops', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        newShopStatus.textContent = data.error ?? 'Could not create the shop.';
+        newShopStatus.className = 'shop-edit__status shop-edit__status--error';
+        return;
+      }
+      newShopStatus.textContent = 'Created.';
+      newShopStatus.className = 'shop-edit__status shop-edit__status--ok';
+      newShopForm.reset();
+      newShopPanel.hidden = true;
+      await loadShops();
+    } catch {
+      newShopStatus.textContent = 'Network error.';
+      newShopStatus.className = 'shop-edit__status shop-edit__status--error';
+    }
+  });
+
+  (async () => {
+    try {
+      const me = await fetch('/api/auth/me', { credentials: 'same-origin' });
+      if (!me.ok) {
+        window.location.replace('/login');
+        return;
+      }
+      await loadShops();
+      guard.hidden = true;
+      content.hidden = false;
+    } catch {
+      window.location.replace('/login');
+    }
+  })();
+</script>

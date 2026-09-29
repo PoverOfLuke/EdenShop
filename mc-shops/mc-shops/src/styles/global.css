@@ -248,7 +248,7 @@ a:hover { text-decoration: underline; }
   font-weight: 500;
 }
 
-.field input, .field select {
+.field input, .field select, .field textarea {
   font-family: var(--font-body);
   font-size: 14px;
   color: var(--text);
@@ -258,9 +258,11 @@ a:hover { text-decoration: underline; }
   padding: 10px 12px;
 }
 
-.field input:focus, .field select:focus {
+.field input:focus, .field select:focus, .field textarea:focus {
   border-color: var(--emerald);
 }
+
+.field textarea { resize: vertical; min-height: 64px; font-family: var(--font-body); }
 
 .search-bar {
   display: flex;
@@ -804,4 +806,106 @@ a:hover { text-decoration: underline; }
   margin-top: 18px;
   font-size: 13px;
   color: var(--text-faint);
+}
+
+.login-status {
+  font-size: 13px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  margin-bottom: 16px;
+  border: 1px solid var(--border);
+}
+
+.login-status--pending { color: var(--gold); border-color: var(--gold); background: rgba(232, 181, 69, 0.08); }
+.login-status--error { color: var(--redstone); border-color: var(--redstone); background: rgba(224, 86, 79, 0.08); }
+
+/* ==================================================================== */
+/* Navbar auth area (login button <-> logged-in merchant name)          */
+/* ==================================================================== */
+
+.navbar__auth {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.navbar__user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13.5px;
+  color: var(--text-dim);
+}
+
+.navbar__user-name {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.navbar__logout {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+/* ==================================================================== */
+/* Merchant dashboard (My Shops)                                        */
+/* ==================================================================== */
+
+.shops-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.shop-edit-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.shop-edit {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+}
+
+.shop-edit__title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 15px;
+  margin-bottom: 14px;
+}
+
+.shop-edit__row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 14px;
+}
+
+@media (max-width: 640px) { .shop-edit__row { grid-template-columns: 1fr; } }
+
+.shop-edit__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.shop-edit__status {
+  font-size: 12.5px;
+  color: var(--text-faint);
+}
+
+.shop-edit__status--ok { color: var(--emerald); }
+.shop-edit__status--error { color: var(--redstone); }
+
+.dashboard-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-dim);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
 }

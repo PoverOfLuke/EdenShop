@@ -1,6 +1,6 @@
 ---
 interface Props {
-  active: 'home' | 'shops' | 'products' | 'login';
+  active: 'home' | 'shops' | 'products' | 'login' | 'dashboard';
 }
 const { active } = Astro.props as Props;
 
@@ -34,6 +34,51 @@ const links = [
       <span class="status-dot"></span>
       data synced via Discord
     </span>
-    <a class="btn btn--primary" href="/login">Vendor Login</a>
+    <div id="nav-auth-area" class="navbar__auth">
+      <a class="btn btn--primary" href="/login">Vendor Login</a>
+    </div>
   </div>
 </header>
+
+<script>
+  // The navbar is static HTML (built once at build time), so it always
+  // starts in the "logged out" state above. This script checks the
+  // session client-side and swaps in the merchant's name + a shortcut
+  // to their shop dashboard when a valid session is found.
+  (async () => {
+    try {
+      const res = await fetch('/api/auth/me', { credentials: 'same-origin' });
+      if (!res.ok) return;
+      const data = (await res.json()) as { display_name?: string };
+
+      const area = document.getElementById('nav-auth-area');
+      if (!area) return;
+      area.innerHTML = '';
+
+      const manageLink = document.createElement('a');
+      manageLink.className = 'btn btn--primary';
+      manageLink.href = '/dashboard';
+      manageLink.textContent = 'Manage Shops';
+
+      const userBlock = document.createElement('span');
+      userBlock.className = 'navbar__user';
+
+      const nameEl = document.createElement('span');
+      nameEl.className = 'navbar__user-name';
+      nameEl.textContent = data.display_name ?? 'Merchant';
+
+      const logoutLink = document.createElement('a');
+      logoutLink.className = 'navbar__logout';
+      logoutLink.href = '/api/auth/logout';
+      logoutLink.textContent = 'Log out';
+
+      userBlock.appendChild(nameEl);
+      userBlock.appendChild(logoutLink);
+
+      area.appendChild(manageLink);
+      area.appendChild(userBlock);
+    } catch {
+      // Not logged in, or the API is unreachable — leave the login button as is.
+    }
+  })();
+</script>

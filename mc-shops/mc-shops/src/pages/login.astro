@@ -15,22 +15,35 @@ import '@/styles/global.css';
           <span class="brand-text">EdenShop</span>
         </div>
         <h1>Vendor Login</h1>
-        <p class="sub">Log in to manage your shop and update your products.</p>
+        <p class="sub">Log in with Discord to manage your shop and update your products.</p>
 
-        <form>
-          <div class="field">
-            <label for="username">Minecraft username</label>
-            <input id="username" name="username" type="text" placeholder="E.g. Steve_IT" autocomplete="username" />
-          </div>
-          <div class="field">
-            <label for="password">Access code</label>
-            <input id="password" name="password" type="password" placeholder="••••••••" autocomplete="current-password" />
-          </div>
-          <button class="btn btn--primary" type="submit">Log in</button>
-        </form>
+        <div id="login-status" class="login-status" hidden></div>
+
+        <a class="btn btn--primary login-discord-btn" href="/api/auth/discord">Continue with Discord</a>
 
         <a class="login-back" href="/">← back to home</a>
       </div>
     </div>
+
+    <script>
+      const params = new URLSearchParams(window.location.search);
+      const status = params.get('status');
+      const statusEl = document.getElementById('login-status');
+
+      if (statusEl && status === 'pending') {
+        statusEl.textContent = 'Your account is waiting for approval. You’ll be able to log in once a server admin approves it.';
+        statusEl.classList.add('login-status--pending');
+        statusEl.hidden = false;
+      } else if (statusEl && status === 'error') {
+        statusEl.textContent = 'Something went wrong with Discord login. Please try again.';
+        statusEl.classList.add('login-status--error');
+        statusEl.hidden = false;
+      } else {
+        // If already logged in, skip the login page entirely.
+        fetch('/api/auth/me', { credentials: 'same-origin' })
+          .then((res) => { if (res.ok) window.location.replace('/'); })
+          .catch(() => {});
+      }
+    </script>
   </body>
 </html>
