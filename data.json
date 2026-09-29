@@ -1,5 +1,5 @@
 {
-  "last_message_id": "1554158281528844329",
+  "last_message_id": "1554339514313351199",
   "messages": [
     {
       "id": "1551684861247619083",
@@ -576,6 +576,18 @@
       "author": "Eden Bot",
       "content": "<t:1790610609:T> `[PowerOfShop]` **Squiddodely** hit snitch `central_shop` at `[world | -40, 63, -80]`",
       "created_at": "2026-09-28T15:50:09.181000+00:00"
+    },
+    {
+      "id": "1554339492842840097",
+      "author": "Eden Bot",
+      "content": "<t:1790653813:T> `[PowerOfShop]` **Farmkid2840** hit snitch `central_shop` at `[world | -32, 68, -80]`",
+      "created_at": "2026-09-29T03:50:13.325000+00:00"
+    },
+    {
+      "id": "1554339514313351199",
+      "author": "Eden Bot",
+      "content": "<t:1790653818:T> `[PowerOfShop]` **Farmkid2840** hit snitch `central_shop` at `[world | -28, 70, -64]`",
+      "created_at": "2026-09-29T03:50:18.444000+00:00"
     }
   ]
 }
