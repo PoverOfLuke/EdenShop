@@ -62,6 +62,19 @@ export async function getMerchantById(env: Env, id: number): Promise<Merchant | 
   return (rows[0] as unknown as Merchant) ?? null;
 }
 
+/** All shops, for the public Shops/Home pages. A shop only exists if its owning merchant was approved at creation time. */
+export async function getAllShops(env: Env): Promise<Shop[]> {
+  const sql = getSql(env);
+  const rows = await sql`SELECT * FROM shops ORDER BY created_at DESC`;
+  return rows as unknown as Shop[];
+}
+
+export async function getShopBySlug(env: Env, slug: string): Promise<Shop | null> {
+  const sql = getSql(env);
+  const rows = await sql`SELECT * FROM shops WHERE slug = ${slug} LIMIT 1`;
+  return (rows[0] as unknown as Shop) ?? null;
+}
+
 export async function getShopsByMerchant(env: Env, merchantId: number): Promise<Shop[]> {
   const sql = getSql(env);
   const rows = await sql`SELECT * FROM shops WHERE merchant_id = ${merchantId} ORDER BY created_at ASC`;
@@ -215,4 +228,37 @@ export async function updateShopItem(env: Env, id: number, input: ShopItemInput)
 export async function deleteShopItem(env: Env, id: number): Promise<void> {
   const sql = getSql(env);
   await sql`DELETE FROM shop_items WHERE id = ${id}`;
+}
+
+// -- Public, read-only, joined views for Home / Shops / Products pages --
+
+export interface ShopItemWithShop extends ShopItem {
+  shop_name: string;
+  shop_slug: string;
+  shop_x: number | null;
+  shop_z: number | null;
+}
+
+/** Every configured product across every shop, for the public Products page. */
+export async function getAllShopItemsWithShop(env: Env): Promise<ShopItemWithShop[]> {
+  const sql = getSql(env);
+  const rows = await sql`
+    SELECT si.*, s.name AS shop_name, s.slug AS shop_slug, s.x AS shop_x, s.z AS shop_z
+    FROM shop_items si
+    JOIN shops s ON s.id = si.shop_id
+    ORDER BY si.created_at DESC
+  `;
+  return rows as unknown as ShopItemWithShop[];
+}
+
+export async function getShopItemWithShopById(env: Env, id: number): Promise<ShopItemWithShop | null> {
+  const sql = getSql(env);
+  const rows = await sql`
+    SELECT si.*, s.name AS shop_name, s.slug AS shop_slug, s.x AS shop_x, s.z AS shop_z
+    FROM shop_items si
+    JOIN shops s ON s.id = si.shop_id
+    WHERE si.id = ${id}
+    LIMIT 1
+  `;
+  return (rows[0] as unknown as ShopItemWithShop) ?? null;
 }

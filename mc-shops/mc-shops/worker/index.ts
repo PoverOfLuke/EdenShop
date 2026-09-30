@@ -14,6 +14,8 @@ import {
   getMerchantById,
   getShopsByMerchant,
   getShopById,
+  getAllShops,
+  getShopBySlug,
   createShop,
   updateShop,
   ensureShopItemsTable,
@@ -22,6 +24,8 @@ import {
   createShopItem,
   updateShopItem,
   deleteShopItem,
+  getAllShopItemsWithShop,
+  getShopItemWithShopById,
   type Merchant,
   type Shop,
   type ShopInput,
@@ -265,6 +269,55 @@ function handleCatalogSearch(request: Request): Response {
 }
 
 // ---------------------------------------------------------------------------
+// Public, read-only endpoints backing Home / Shops / Products.
+// No auth: this is the same data anyone browsing the site can already see.
+// ---------------------------------------------------------------------------
+
+async function handlePublicShops(env: Env): Promise<Response> {
+  const shops = await getAllShops(env);
+  return json({ shops });
+}
+
+async function handlePublicShopDetail(env: Env, slug: string): Promise<Response> {
+  const shop = await getShopBySlug(env, slug);
+  if (!shop) return json({ error: 'shop_not_found' }, 404);
+  return json({ shop });
+}
+
+async function handlePublicShopItems(env: Env, slug: string): Promise<Response> {
+  const shop = await getShopBySlug(env, slug);
+  if (!shop) return json({ error: 'shop_not_found' }, 404);
+  await ensureShopItemsTable(env);
+  const items = await getShopItems(env, shop.id);
+  return json({ shop, items: items.map(enrichShopItem) });
+}
+
+async function handlePublicProducts(env: Env): Promise<Response> {
+  await ensureShopItemsTable(env);
+  const rows = await getAllShopItemsWithShop(env);
+  const items = rows.map((row) => {
+    const catalog = getCatalogItem(row.minecraft_id);
+    return {
+      ...row,
+      catalog: catalog ? { name: catalog.name, category: catalog.category, image_url: catalog.image_url } : null,
+    };
+  });
+  return json({ items });
+}
+
+async function handlePublicProductDetail(env: Env, id: number): Promise<Response> {
+  const row = await getShopItemWithShopById(env, id);
+  if (!row) return json({ error: 'product_not_found' }, 404);
+  const catalog = getCatalogItem(row.minecraft_id);
+  return json({
+    item: {
+      ...row,
+      catalog: catalog ? { name: catalog.name, category: catalog.category, image_url: catalog.image_url } : null,
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
 // /api/merchant/shops/:shopId/items
 // ---------------------------------------------------------------------------
 
@@ -458,6 +511,19 @@ export default {
     if (pathname === '/api/auth/logout') return handleLogout();
     if (pathname === '/api/auth/me') return handleMe(request, env);
     if (pathname === '/api/catalog/search') return handleCatalogSearch(request);
+
+    if (pathname === '/api/shops') return handlePublicShops(env);
+    if (pathname === '/api/products') return handlePublicProducts(env);
+
+    const publicProductMatch = pathname.match(/^\/api\/products\/(\d+)$/);
+    if (publicProductMatch) return handlePublicProductDetail(env, Number(publicProductMatch[1]));
+
+    const publicShopItemsMatch = pathname.match(/^\/api\/shops\/([a-z0-9-]+)\/items$/);
+    if (publicShopItemsMatch) return handlePublicShopItems(env, publicShopItemsMatch[1]);
+
+    const publicShopMatch = pathname.match(/^\/api\/shops\/([a-z0-9-]+)$/);
+    if (publicShopMatch) return handlePublicShopDetail(env, publicShopMatch[1]);
+
     if (pathname === '/api/merchant/shops') return handleShopsCollection(request, env);
 
     const shopMatch = pathname.match(/^\/api\/merchant\/shops\/(\d+)$/);

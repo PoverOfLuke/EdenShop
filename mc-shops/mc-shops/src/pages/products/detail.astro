@@ -1,0 +1,125 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import Topbar from '@/components/Topbar.astro';
+---
+<BaseLayout title="Product" activeSection="products">
+  <Topbar slot="topbar" title="Product" />
+
+  <p class="breadcrumb"><a href="/products">Products</a> / <span id="crumb">…</span></p>
+
+  <div id="loading" class="dashboard-empty">Loading product…</div>
+
+  <div id="content" hidden>
+    <div class="panel product-detail__panel">
+      <span class="item-icon-wrap item-icon-wrap--lg" id="product-icon-wrap">
+        <img class="item-icon" id="product-icon" alt=""
+          onerror="this.style.display='none';this.parentElement.classList.add('item-icon-wrap--missing')" />
+      </span>
+      <div style="flex:1;">
+        <h1 id="product-name" style="margin-bottom:4px;"></h1>
+        <div class="widget__meta" id="product-meta"></div>
+
+        <div class="trade-columns">
+          <div class="trade-panel">
+            <div class="trade-panel__head"><span class="trade-tag trade-tag--sell">sells</span></div>
+            <div id="sell-fields"></div>
+          </div>
+          <div class="trade-panel">
+            <div class="trade-panel__head"><span class="trade-tag trade-tag--buy">buys</span></div>
+            <div id="buy-fields"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel shop-link-card">
+      <div>
+        <div class="widget__label">Available at</div>
+        <div class="shop-card__name" style="margin-top:4px;" id="shop-name"></div>
+        <div class="detail-head__meta" style="margin-top:6px;"><span class="coord-chip" id="shop-coords"></span></div>
+      </div>
+      <a class="btn btn--primary" id="shop-link" href="/shops">Go to shop</a>
+    </div>
+  </div>
+</BaseLayout>
+
+<script>
+  interface ProductDetail {
+    id: number; minecraft_id: string;
+    quantity: number | null; compacted_quantity: number | null; essence_quantity: string | null;
+    sell_amount: number | null; sell_price: string | null;
+    buy_amount: number | null; buy_price: string | null;
+    compacted_sell_amount: number | null; compacted_sell_price: string | null;
+    compacted_buy_amount: number | null; compacted_buy_price: string | null;
+    shop_name: string; shop_slug: string; shop_x: number | null; shop_z: number | null;
+    catalog: { name: string; category: string; image_url: string } | null;
+  }
+
+  function fieldRow(label: string, value: string): string {
+    return `<div><span class="field-label">${label}</span><span class="field-value">${value}</span></div>`;
+  }
+
+  function buyCapacity(essence: string | null, price: string | null, amount: number | null): number | null {
+    if (essence === null || price === null || amount === null) return null;
+    const e = Number(essence), p = Number(price);
+    if (!p) return null;
+    return Math.floor((e / p) * amount);
+  }
+
+  const id = new URLSearchParams(window.location.search).get('id');
+
+  (async () => {
+    const loading = document.getElementById('loading') as HTMLElement;
+    if (!id) { loading.textContent = 'Product not found.'; return; }
+
+    try {
+      const res = await fetch(`/api/products/${id}`);
+      if (!res.ok) { loading.textContent = 'Product not found.'; return; }
+      const { item } = (await res.json()) as { item: ProductDetail };
+
+      const name = item.catalog?.name ?? item.minecraft_id;
+      (document.getElementById('crumb') as HTMLElement).textContent = name;
+      (document.getElementById('product-name') as HTMLElement).textContent = name;
+      (document.getElementById('product-meta') as HTMLElement).textContent = `${item.catalog?.category ?? 'Unknown category'} · ${item.minecraft_id}`;
+
+      const icon = document.getElementById('product-icon') as HTMLImageElement;
+      icon.src = item.catalog?.image_url ?? '';
+      icon.alt = name;
+
+      const sellBox = document.getElementById('sell-fields') as HTMLElement;
+      const sellRows: string[] = [];
+      if (item.sell_amount !== null && item.sell_price !== null) {
+        sellRows.push(fieldRow('Non compacted', `${item.sell_amount} for ${item.sell_price} Essence`));
+        sellRows.push(fieldRow('Available', item.quantity === 0 ? 'Out of stock' : String(item.quantity ?? '—')));
+      }
+      if (item.compacted_sell_amount !== null && item.compacted_sell_price !== null) {
+        sellRows.push(fieldRow('Compacted', `${item.compacted_sell_amount} for ${item.compacted_sell_price} Essence`));
+        sellRows.push(fieldRow('Compacted available', String(item.compacted_quantity ?? '—')));
+      }
+      sellBox.innerHTML = sellRows.length ? `<div class="trade-panel__fields">${sellRows.join('')}</div>` : `<div class="trade-panel--empty">This shop doesn't sell this item.</div>`;
+
+      const buyBox = document.getElementById('buy-fields') as HTMLElement;
+      const buyRows: string[] = [];
+      if (item.buy_amount !== null && item.buy_price !== null) {
+        const cap = buyCapacity(item.essence_quantity, item.buy_price, item.buy_amount);
+        buyRows.push(fieldRow('Non compacted', `${item.buy_amount} for ${item.buy_price} Essence`));
+        if (cap !== null) buyRows.push(fieldRow('Shop can still buy', String(cap)));
+      }
+      if (item.compacted_buy_amount !== null && item.compacted_buy_price !== null) {
+        const cap = buyCapacity(item.essence_quantity, item.compacted_buy_price, item.compacted_buy_amount);
+        buyRows.push(fieldRow('Compacted', `${item.compacted_buy_amount} for ${item.compacted_buy_price} Essence`));
+        if (cap !== null) buyRows.push(fieldRow('Shop can still buy (compacted)', String(cap)));
+      }
+      buyBox.innerHTML = buyRows.length ? `<div class="trade-panel__fields">${buyRows.join('')}</div>` : `<div class="trade-panel--empty">This shop doesn't buy this item back.</div>`;
+
+      (document.getElementById('shop-name') as HTMLElement).textContent = item.shop_name;
+      (document.getElementById('shop-coords') as HTMLElement).textContent = `X ${item.shop_x ?? '—'} · Z ${item.shop_z ?? '—'}`;
+      (document.getElementById('shop-link') as HTMLAnchorElement).href = `/shops/detail?slug=${encodeURIComponent(item.shop_slug)}`;
+
+      loading.hidden = true;
+      (document.getElementById('content') as HTMLElement).hidden = false;
+    } catch {
+      loading.textContent = "Couldn't load this product right now.";
+    }
+  })();
+</script>

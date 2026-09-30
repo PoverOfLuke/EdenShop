@@ -1,0 +1,118 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import Topbar from '@/components/Topbar.astro';
+---
+<BaseLayout title="Shop" activeSection="shops">
+  <Topbar slot="topbar" title="Shop" />
+
+  <p class="breadcrumb"><a href="/shops">Shops</a> / <span id="crumb">…</span></p>
+
+  <div id="shop-loading" class="dashboard-empty">Loading shop…</div>
+
+  <div id="shop-content" hidden>
+    <div class="detail-head">
+      <div>
+        <h1 id="shop-name" style="margin-bottom:2px;"></h1>
+        <div class="detail-head__meta">
+          <span class="coord-chip" id="shop-coords"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="info-columns">
+      <div class="panel">
+        <div class="panel__title">Description</div>
+        <p id="shop-description"></p>
+      </div>
+      <div class="panel">
+        <div class="panel__title">How to get there</div>
+        <p id="shop-directions"></p>
+      </div>
+    </div>
+
+    <div class="section-heading">
+      <h2>Shop products</h2>
+      <span class="section-heading__count" id="item-count"></span>
+    </div>
+
+    <div class="product-grid" id="item-grid"></div>
+    <div class="empty-state" id="no-items" hidden>
+      <div class="empty-state__icon"></div>
+      No products for sale right now.
+    </div>
+  </div>
+</BaseLayout>
+
+<script>
+  interface ShopItem {
+    id: number; minecraft_id: string;
+    quantity: number | null; sell_amount: number | null; sell_price: string | null;
+    buy_amount: number | null; buy_price: string | null;
+    catalog: { name: string; image_url: string } | null;
+  }
+
+  function escapeHtml(value: string): string {
+    const div = document.createElement('div');
+    div.textContent = value;
+    return div.innerHTML;
+  }
+
+  function itemIcon(catalog: { name: string; image_url: string } | null, fallbackName: string): string {
+    const alt = escapeHtml(catalog?.name ?? fallbackName);
+    const src = catalog?.image_url ?? '';
+    return `<span class="item-icon-wrap">
+      <img class="item-icon" src="${escapeHtml(src)}" alt="${alt}"
+        onerror="this.style.display='none';this.parentElement.classList.add('item-icon-wrap--missing')" />
+    </span>`;
+  }
+
+  const slug = new URLSearchParams(window.location.search).get('slug');
+
+  (async () => {
+    const loading = document.getElementById('shop-loading') as HTMLElement;
+    if (!slug) { loading.textContent = 'Shop not found.'; return; }
+
+    try {
+      const res = await fetch(`/api/shops/${encodeURIComponent(slug)}/items`);
+      if (!res.ok) { loading.textContent = 'Shop not found.'; return; }
+      const data = (await res.json()) as { shop: { name: string; x: number | null; z: number | null; description: string | null; directions: string | null }; items: ShopItem[] };
+
+      (document.getElementById('crumb') as HTMLElement).textContent = data.shop.name;
+      (document.getElementById('shop-name') as HTMLElement).textContent = data.shop.name;
+      (document.getElementById('shop-coords') as HTMLElement).textContent = `X ${data.shop.x ?? '—'} · Z ${data.shop.z ?? '—'}`;
+      (document.getElementById('shop-description') as HTMLElement).textContent = data.shop.description || 'No description yet.';
+      (document.getElementById('shop-directions') as HTMLElement).textContent = data.shop.directions || 'No directions yet.';
+
+      const grid = document.getElementById('item-grid') as HTMLElement;
+      const noItems = document.getElementById('no-items') as HTMLElement;
+      (document.getElementById('item-count') as HTMLElement).textContent = `${data.items.length} item${data.items.length === 1 ? '' : 's'}`;
+      noItems.hidden = data.items.length > 0;
+
+      grid.innerHTML = data.items
+        .map((i) => {
+          const name = i.catalog?.name ?? i.minecraft_id;
+          const rows: string[] = [];
+          if (i.sell_amount !== null && i.sell_price !== null) {
+            rows.push(`<div class="trade-row"><div class="trade-row__left"><span class="trade-tag trade-tag--sell">sells</span>
+              <span class="stock ${i.quantity === 0 ? 'stock--zero' : ''}">${i.quantity === 0 ? 'out of stock' : `${i.quantity} in stock`}</span></div>
+              <span class="price__unit">${i.sell_price} Essence</span></div>`);
+          }
+          if (i.buy_amount !== null && i.buy_price !== null) {
+            rows.push(`<div class="trade-row"><div class="trade-row__left"><span class="trade-tag trade-tag--buy">buys</span></div>
+              <span class="price__unit">${i.buy_price} Essence</span></div>`);
+          }
+          return `<a class="product-card" href="/products/detail?id=${i.id}">
+            <div class="product-card__top">${itemIcon(i.catalog, i.minecraft_id)}
+              <div><div class="product-card__name">${escapeHtml(name)}</div></div></div>
+            <div class="product-card__trades">${rows.join('')}</div>
+          </a>`;
+        })
+        .join('');
+
+      loading.hidden = true;
+      (document.getElementById('shop-content') as HTMLElement).hidden = false;
+    } catch {
+      loading.textContent = "Couldn't load this shop right now.";
+    }
+  })();
+</script>

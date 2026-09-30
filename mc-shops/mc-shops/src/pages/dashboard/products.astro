@@ -76,118 +76,208 @@ import Topbar from '@/components/Topbar.astro';
     </span>`;
   }
 
-  function fmtEssence(value: string | null): string {
+  function fmtEssence(value: string | number | null): string {
     if (value === null) return '—';
     return `${Number(value)} Essence`;
+  }
+
+  /** Sell capacity is simply the configured stock quantity for that variant. */
+  function sellCapacity(quantity: number | string | null): number | null {
+    if (quantity === null || quantity === '') return null;
+    const n = Number(quantity);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  /** Buy capacity: how many the merchant can still afford at this rate, given the shared Essence budget. */
+  function buyCapacity(essence: number | string | null, price: number | string | null, amount: number | string | null): number | null {
+    if (essence === null || essence === '' || price === null || price === '' || amount === null || amount === '') return null;
+    const e = Number(essence), p = Number(price), a = Number(amount);
+    if (!Number.isFinite(e) || !Number.isFinite(p) || !Number.isFinite(a) || p <= 0) return null;
+    return Math.floor((e / p) * a);
   }
 
   function summaryLine(item: ShopItem): string {
     const parts: string[] = [];
     if (item.sell_amount !== null && item.sell_price !== null) {
-      parts.push(`Sells ${item.sell_amount} for ${fmtEssence(item.sell_price)}`);
-    }
-    if (item.buy_amount !== null && item.buy_price !== null) {
-      const budget = item.essence_quantity !== null ? ` (budget: ${fmtEssence(item.essence_quantity)})` : '';
-      parts.push(`Buys ${item.buy_amount} for ${fmtEssence(item.buy_price)}${budget}`);
+      const cap = sellCapacity(item.quantity);
+      parts.push(`Sells ${item.sell_amount} for ${fmtEssence(item.sell_price)}${cap !== null ? ` (${cap} available)` : ''}`);
     }
     if (item.compacted_sell_amount !== null && item.compacted_sell_price !== null) {
-      parts.push(`Compacted sell ${item.compacted_sell_amount} for ${fmtEssence(item.compacted_sell_price)}`);
+      const cap = sellCapacity(item.compacted_quantity);
+      parts.push(`Compacted sell ${item.compacted_sell_amount} for ${fmtEssence(item.compacted_sell_price)}${cap !== null ? ` (${cap} available)` : ''}`);
+    }
+    if (item.buy_amount !== null && item.buy_price !== null) {
+      const cap = buyCapacity(item.essence_quantity, item.buy_price, item.buy_amount);
+      parts.push(`Buys ${item.buy_amount} for ${fmtEssence(item.buy_price)}${cap !== null ? ` (can buy ${cap})` : ''}`);
     }
     if (item.compacted_buy_amount !== null && item.compacted_buy_price !== null) {
-      parts.push(`Compacted buy ${item.compacted_buy_amount} for ${fmtEssence(item.compacted_buy_price)}`);
+      const cap = buyCapacity(item.essence_quantity, item.compacted_buy_price, item.compacted_buy_amount);
+      parts.push(`Compacted buy ${item.compacted_buy_amount} for ${fmtEssence(item.compacted_buy_price)}${cap !== null ? ` (can buy ${cap})` : ''}`);
     }
     return parts.length ? parts.join(' · ') : 'No trade modes configured';
   }
 
   // -- Editable trade-mode fields, shared between the "add" and "edit" forms --
+  //
+  // Structure: Sell to Player / Buy from Player (top checkboxes), each with
+  // Non Compacted / Compacted sub-checkboxes revealing their own Amount+Price.
+  // Buy from Player also shows a single shared "Essence Available" field.
+  // Capacity (sell: = quantity: buy: = floor(essence/price)*amount) is
+  // recalculated live as the merchant types.
 
-  function tradeFieldsHtml(prefix: string, item?: ShopItem): string {
-    const sellOn = !!item && item.sell_amount !== null && item.sell_price !== null;
-    const buyOn = !!item && item.buy_amount !== null && item.buy_price !== null;
-    const compactedOn =
-      !!item &&
-      (item.compacted_quantity !== null ||
-        (item.compacted_sell_amount !== null && item.compacted_sell_price !== null) ||
-        (item.compacted_buy_amount !== null && item.compacted_buy_price !== null));
+  function tradeFieldsHtml(item?: ShopItem): string {
+    const sellNormalOn = !!item && item.sell_amount !== null && item.sell_price !== null;
+    const sellCompactedOn = !!item && item.compacted_sell_amount !== null && item.compacted_sell_price !== null;
+    const sellOn = sellNormalOn || sellCompactedOn;
+
+    const buyNormalOn = !!item && item.buy_amount !== null && item.buy_price !== null;
+    const buyCompactedOn = !!item && item.compacted_buy_amount !== null && item.compacted_buy_price !== null;
+    const buyOn = buyNormalOn || buyCompactedOn;
 
     return `
-      <div class="field"><label>Available quantity</label>
-        <input name="quantity" type="number" min="0" value="${item?.quantity ?? ''}" /></div>
+      <label class="mode-toggle"><input type="checkbox" name="sellToggle" ${sellOn ? 'checked' : ''} /> Sell to Player</label>
+      <div class="mode-block sell-block" style="${sellOn ? '' : 'display:none;'}">
+        <div class="submode-row">
+          <label><input type="checkbox" name="sellNormalToggle" ${sellNormalOn ? 'checked' : ''} /> Non Compacted</label>
+          <label><input type="checkbox" name="sellCompactedToggle" ${sellCompactedOn ? 'checked' : ''} /> Compacted</label>
+        </div>
 
-      <label style="display:flex; align-items:center; gap:8px; font-size:13px; color:var(--text-dim); margin:12px 0 6px;">
-        <input type="checkbox" name="sellToggle" ${sellOn ? 'checked' : ''} /> Sell to players
-      </label>
-      <div class="shop-edit__row sell-fields" style="${sellOn ? '' : 'display:none;'}">
-        <div></div>
-        <div class="field"><label>Amount</label><input name="sellAmount" type="number" min="0" value="${item?.sell_amount ?? ''}" /></div>
-        <div class="field"><label>Price (Essence)</label><input name="sellPrice" type="number" min="0" step="0.01" value="${item?.sell_price ?? ''}" /></div>
+        <div class="submode-fields sell-normal-fields" style="${sellNormalOn ? '' : 'display:none;'}">
+          <div class="shop-edit__row">
+            <div class="field"><label>Quantity</label><input name="quantity" type="number" min="0" value="${item?.quantity ?? ''}" /></div>
+            <div class="field"><label>Amount</label><input name="sellAmount" type="number" min="0" value="${item?.sell_amount ?? ''}" /></div>
+            <div class="field"><label>Price (Essence)</label><input name="sellPrice" type="number" min="0" step="0.01" value="${item?.sell_price ?? ''}" /></div>
+          </div>
+          <p class="capacity-line" data-capacity="sell-normal">Available for sale: —</p>
+        </div>
+
+        <div class="submode-fields sell-compacted-fields" style="${sellCompactedOn ? '' : 'display:none;'}">
+          <div class="shop-edit__row">
+            <div class="field"><label>Compacted quantity</label><input name="compactedQuantity" type="number" min="0" value="${item?.compacted_quantity ?? ''}" /></div>
+            <div class="field"><label>Amount</label><input name="compactedSellAmount" type="number" min="0" value="${item?.compacted_sell_amount ?? ''}" /></div>
+            <div class="field"><label>Price (Essence)</label><input name="compactedSellPrice" type="number" min="0" step="0.01" value="${item?.compacted_sell_price ?? ''}" /></div>
+          </div>
+          <p class="capacity-line" data-capacity="sell-compacted">Available for sale (compacted): —</p>
+        </div>
       </div>
 
-      <label style="display:flex; align-items:center; gap:8px; font-size:13px; color:var(--text-dim); margin:12px 0 6px;">
-        <input type="checkbox" name="buyToggle" ${buyOn ? 'checked' : ''} /> Buy from players
-      </label>
-      <div class="buy-fields" style="${buyOn ? '' : 'display:none;'}">
-        <div class="shop-edit__row">
-          <div></div>
-          <div class="field"><label>Amount</label><input name="buyAmount" type="number" min="0" value="${item?.buy_amount ?? ''}" /></div>
-          <div class="field"><label>Price (Essence)</label><input name="buyPrice" type="number" min="0" step="0.01" value="${item?.buy_price ?? ''}" /></div>
+      <label class="mode-toggle"><input type="checkbox" name="buyToggle" ${buyOn ? 'checked' : ''} /> Buy from Player</label>
+      <div class="mode-block buy-block" style="${buyOn ? '' : 'display:none;'}">
+        <div class="submode-row">
+          <label><input type="checkbox" name="buyNormalToggle" ${buyNormalOn ? 'checked' : ''} /> Non Compacted</label>
+          <label><input type="checkbox" name="buyCompactedToggle" ${buyCompactedOn ? 'checked' : ''} /> Compacted</label>
         </div>
-        <div class="field"><label>Essence available for this item (buying budget)</label>
+
+        <div class="field"><label>Essence Available</label>
           <input name="essenceQuantity" type="number" min="0" step="0.01" value="${item?.essence_quantity ?? ''}" /></div>
-      </div>
 
-      <label style="display:flex; align-items:center; gap:8px; font-size:13px; color:var(--text-dim); margin:12px 0 6px;">
-        <input type="checkbox" name="compactedToggle" ${compactedOn ? 'checked' : ''} /> Compacted version
-      </label>
-      <div class="compacted-fields" style="${compactedOn ? '' : 'display:none;'}">
-        <div class="field"><label>Compacted quantity available</label>
-          <input name="compactedQuantity" type="number" min="0" value="${item?.compacted_quantity ?? ''}" /></div>
-        <div class="shop-edit__row">
-          <div></div>
-          <div class="field"><label>Sell amount</label><input name="compactedSellAmount" type="number" min="0" value="${item?.compacted_sell_amount ?? ''}" /></div>
-          <div class="field"><label>Sell price</label><input name="compactedSellPrice" type="number" min="0" step="0.01" value="${item?.compacted_sell_price ?? ''}" /></div>
+        <div class="submode-fields buy-normal-fields" style="${buyNormalOn ? '' : 'display:none;'}">
+          <div class="shop-edit__row">
+            <div></div>
+            <div class="field"><label>Amount</label><input name="buyAmount" type="number" min="0" value="${item?.buy_amount ?? ''}" /></div>
+            <div class="field"><label>Price (Essence)</label><input name="buyPrice" type="number" min="0" step="0.01" value="${item?.buy_price ?? ''}" /></div>
+          </div>
+          <p class="capacity-line" data-capacity="buy-normal">Available for purchase: —</p>
         </div>
-        <div class="shop-edit__row">
-          <div></div>
-          <div class="field"><label>Buy amount</label><input name="compactedBuyAmount" type="number" min="0" value="${item?.compacted_buy_amount ?? ''}" /></div>
-          <div class="field"><label>Buy price</label><input name="compactedBuyPrice" type="number" min="0" step="0.01" value="${item?.compacted_buy_price ?? ''}" /></div>
+
+        <div class="submode-fields buy-compacted-fields" style="${buyCompactedOn ? '' : 'display:none;'}">
+          <div class="shop-edit__row">
+            <div></div>
+            <div class="field"><label>Amount</label><input name="compactedBuyAmount" type="number" min="0" value="${item?.compacted_buy_amount ?? ''}" /></div>
+            <div class="field"><label>Price (Essence)</label><input name="compactedBuyPrice" type="number" min="0" step="0.01" value="${item?.compacted_buy_price ?? ''}" /></div>
+          </div>
+          <p class="capacity-line" data-capacity="buy-compacted">Available for purchase (compacted): —</p>
         </div>
       </div>
     `;
   }
 
   function wireToggles(root: HTMLElement) {
-    const sellToggle = root.querySelector('input[name="sellToggle"]') as HTMLInputElement;
-    const buyToggle = root.querySelector('input[name="buyToggle"]') as HTMLInputElement;
-    const compactedToggle = root.querySelector('input[name="compactedToggle"]') as HTMLInputElement;
-    const sellFields = root.querySelector('.sell-fields') as HTMLElement;
-    const buyFields = root.querySelector('.buy-fields') as HTMLElement;
-    const compactedFields = root.querySelector('.compacted-fields') as HTMLElement;
+    const get = (name: string) => root.querySelector(`[name="${name}"]`) as HTMLInputElement;
 
-    sellToggle?.addEventListener('change', () => { sellFields.style.display = sellToggle.checked ? '' : 'none'; });
-    buyToggle?.addEventListener('change', () => { buyFields.style.display = buyToggle.checked ? '' : 'none'; });
-    compactedToggle?.addEventListener('change', () => { compactedFields.style.display = compactedToggle.checked ? '' : 'none'; });
+    const sellToggle = get('sellToggle');
+    const sellBlock = root.querySelector('.sell-block') as HTMLElement;
+    const sellNormalToggle = get('sellNormalToggle');
+    const sellNormalFields = root.querySelector('.sell-normal-fields') as HTMLElement;
+    const sellCompactedToggle = get('sellCompactedToggle');
+    const sellCompactedFields = root.querySelector('.sell-compacted-fields') as HTMLElement;
+
+    const buyToggle = get('buyToggle');
+    const buyBlock = root.querySelector('.buy-block') as HTMLElement;
+    const buyNormalToggle = get('buyNormalToggle');
+    const buyNormalFields = root.querySelector('.buy-normal-fields') as HTMLElement;
+    const buyCompactedToggle = get('buyCompactedToggle');
+    const buyCompactedFields = root.querySelector('.buy-compacted-fields') as HTMLElement;
+
+    sellToggle?.addEventListener('change', () => {
+      sellBlock.style.display = sellToggle.checked ? '' : 'none';
+      if (!sellToggle.checked) { sellNormalToggle.checked = false; sellCompactedToggle.checked = false; sellNormalFields.style.display = 'none'; sellCompactedFields.style.display = 'none'; }
+    });
+    sellNormalToggle?.addEventListener('change', () => { sellNormalFields.style.display = sellNormalToggle.checked ? '' : 'none'; recalcCapacity(root); });
+    sellCompactedToggle?.addEventListener('change', () => { sellCompactedFields.style.display = sellCompactedToggle.checked ? '' : 'none'; recalcCapacity(root); });
+
+    buyToggle?.addEventListener('change', () => {
+      buyBlock.style.display = buyToggle.checked ? '' : 'none';
+      if (!buyToggle.checked) { buyNormalToggle.checked = false; buyCompactedToggle.checked = false; buyNormalFields.style.display = 'none'; buyCompactedFields.style.display = 'none'; }
+    });
+    buyNormalToggle?.addEventListener('change', () => { buyNormalFields.style.display = buyNormalToggle.checked ? '' : 'none'; recalcCapacity(root); });
+    buyCompactedToggle?.addEventListener('change', () => { buyCompactedFields.style.display = buyCompactedToggle.checked ? '' : 'none'; recalcCapacity(root); });
+
+    root.querySelectorAll('input[type="number"]').forEach((el) => {
+      el.addEventListener('input', () => recalcCapacity(root));
+    });
+
+    recalcCapacity(root);
+  }
+
+  function recalcCapacity(root: HTMLElement) {
+    const val = (name: string) => {
+      const el = root.querySelector(`[name="${name}"]`) as HTMLInputElement | null;
+      return el && el.value !== '' ? el.value : null;
+    };
+    const setLine = (key: string, text: string) => {
+      const el = root.querySelector(`[data-capacity="${key}"]`);
+      if (el) el.textContent = text;
+    };
+
+    const sellCap = sellCapacity(val('quantity'));
+    setLine('sell-normal', `Available for sale: ${sellCap ?? '—'}`);
+
+    const sellCompCap = sellCapacity(val('compactedQuantity'));
+    setLine('sell-compacted', `Available for sale (compacted): ${sellCompCap ?? '—'}`);
+
+    const essence = val('essenceQuantity');
+    const buyCap = buyCapacity(essence, val('buyPrice'), val('buyAmount'));
+    setLine('buy-normal', `Available for purchase: ${buyCap ?? '—'}`);
+
+    const buyCompCap = buyCapacity(essence, val('compactedBuyPrice'), val('compactedBuyAmount'));
+    setLine('buy-compacted', `Available for purchase (compacted): ${buyCompCap ?? '—'}`);
   }
 
   function formToItemPayload(root: HTMLElement, minecraftId: string) {
     const val = (name: string) => (root.querySelector(`[name="${name}"]`) as HTMLInputElement)?.value ?? '';
     const checked = (name: string) => (root.querySelector(`[name="${name}"]`) as HTMLInputElement)?.checked ?? false;
-
     const orNull = (v: string) => (v === '' ? null : v);
+
+    const sellNormal = checked('sellToggle') && checked('sellNormalToggle');
+    const sellCompacted = checked('sellToggle') && checked('sellCompactedToggle');
+    const buyOn = checked('buyToggle');
+    const buyNormal = buyOn && checked('buyNormalToggle');
+    const buyCompacted = buyOn && checked('buyCompactedToggle');
 
     return {
       minecraftId,
-      quantity: orNull(val('quantity')),
-      compactedQuantity: checked('compactedToggle') ? orNull(val('compactedQuantity')) : null,
-      essenceQuantity: checked('buyToggle') ? orNull(val('essenceQuantity')) : null,
-      sellAmount: checked('sellToggle') ? orNull(val('sellAmount')) : null,
-      sellPrice: checked('sellToggle') ? orNull(val('sellPrice')) : null,
-      buyAmount: checked('buyToggle') ? orNull(val('buyAmount')) : null,
-      buyPrice: checked('buyToggle') ? orNull(val('buyPrice')) : null,
-      compactedSellAmount: checked('compactedToggle') ? orNull(val('compactedSellAmount')) : null,
-      compactedSellPrice: checked('compactedToggle') ? orNull(val('compactedSellPrice')) : null,
-      compactedBuyAmount: checked('compactedToggle') ? orNull(val('compactedBuyAmount')) : null,
-      compactedBuyPrice: checked('compactedToggle') ? orNull(val('compactedBuyPrice')) : null,
+      quantity: sellNormal ? orNull(val('quantity')) : null,
+      compactedQuantity: sellCompacted ? orNull(val('compactedQuantity')) : null,
+      essenceQuantity: buyOn ? orNull(val('essenceQuantity')) : null,
+      sellAmount: sellNormal ? orNull(val('sellAmount')) : null,
+      sellPrice: sellNormal ? orNull(val('sellPrice')) : null,
+      buyAmount: buyNormal ? orNull(val('buyAmount')) : null,
+      buyPrice: buyNormal ? orNull(val('buyPrice')) : null,
+      compactedSellAmount: sellCompacted ? orNull(val('compactedSellAmount')) : null,
+      compactedSellPrice: sellCompacted ? orNull(val('compactedSellPrice')) : null,
+      compactedBuyAmount: buyCompacted ? orNull(val('compactedBuyAmount')) : null,
+      compactedBuyPrice: buyCompacted ? orNull(val('compactedBuyPrice')) : null,
     };
   }
 
@@ -219,7 +309,7 @@ import Topbar from '@/components/Topbar.astro';
 
     toggleBtn.addEventListener('click', () => {
       if (editBox.hidden && editBox.innerHTML === '') {
-        editBox.innerHTML = `<form>${tradeFieldsHtml('edit', item)}
+        editBox.innerHTML = `<form>${tradeFieldsHtml(item)}
           <div class="shop-edit__actions"><span class="shop-edit__status" data-role="edit-status"></span>
           <button class="btn btn--primary" type="submit">Save changes</button></div></form>`;
         wireToggles(editBox);
@@ -344,7 +434,7 @@ import Topbar from '@/components/Topbar.astro';
             selectedName.textContent = found.name;
             picker.style.display = 'none';
             selectedBox.style.display = 'flex';
-            fieldsBox.innerHTML = tradeFieldsHtml('add');
+            fieldsBox.innerHTML = tradeFieldsHtml();
             wireToggles(fieldsBox);
             form.hidden = false;
             results.style.display = 'none';

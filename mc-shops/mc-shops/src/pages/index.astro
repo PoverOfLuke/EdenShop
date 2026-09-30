@@ -1,109 +1,114 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import Topbar from '@/components/Topbar.astro';
-import { shops, products } from '@/lib/mockData';
-import { getCatalogItem } from '@/lib/items';
-
-const onlineShops = shops.filter((s) => s.online).length;
-const outOfStock = products.filter((p) => p.sell && p.sell.quantity === 0).length;
-const lowStock = products
-  .filter((p) => p.sell && p.sell.quantity > 0 && p.sell.quantity <= 20)
-  .sort((a, b) => (a.sell?.quantity ?? 0) - (b.sell?.quantity ?? 0));
-
-const totalValue = products.reduce(
-  (sum, p) => sum + (p.sell?.unitPrice ?? 0) * (p.sell?.quantity ?? 0),
-  0
-);
-
-const recentActivity = [...shops]
-  .sort((a, b) => new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime())
-  .slice(0, 6);
-
-function timeAgo(iso: string) {
-  const diffMin = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
-  if (diffMin < 60) return `${diffMin} min ago`;
-  const diffH = Math.round(diffMin / 60);
-  return `${diffH} h ago`;
-}
 ---
 <BaseLayout title="Home" activeSection="home">
   <Topbar slot="topbar" title="Home" />
 
   <p class="page-lede">
-    Overview of the shops connected to the EdenShop server. Data comes from
-    updates sent over Discord and synced to the database — the values below
-    are sample data.
+    Overview of the shops registered on the EdenShop server, built from live data.
   </p>
 
-  <section class="widget-grid" aria-label="General statistics">
-    <div class="widget">
-      <div class="widget__label">Active shops</div>
-      <div class="widget__value widget__value--accent">{onlineShops}<span style="color:var(--text-faint); font-size:16px;"> / {shops.length}</span></div>
-      <div class="widget__meta">registered on the server</div>
-    </div>
-    <div class="widget">
-      <div class="widget__label">Products in catalog</div>
-      <div class="widget__value">{products.length}</div>
-      <div class="widget__meta">across all shops</div>
-    </div>
-    <div class="widget">
-      <div class="widget__label">Total value for sale</div>
-      <div class="widget__value">{totalValue.toFixed(1)}<span style="color:var(--text-faint); font-size:15px;"> Essence</span></div>
-      <div class="widget__meta">estimated at unit price</div>
-    </div>
-    <div class="widget">
-      <div class="widget__label">Out of stock products</div>
-      <div class={`widget__value ${outOfStock > 0 ? 'widget__value--warn' : ''}`}>{outOfStock}</div>
-      <div class="widget__meta">need restocking</div>
-    </div>
-  </section>
+  <div id="home-loading" class="dashboard-empty">Loading…</div>
 
-  <div class="home-columns">
-    <div class="panel">
-      <div class="panel__title">
-        Recent activity
-        <a href="/shops" style="font-size:12px; font-weight:500;">all shops</a>
+  <div id="home-content" hidden>
+    <section class="widget-grid" aria-label="General statistics">
+      <div class="widget">
+        <div class="widget__label">Registered shops</div>
+        <div class="widget__value widget__value--accent" id="stat-shops">0</div>
+        <div class="widget__meta">on the server</div>
       </div>
-      <ul class="activity-list">
-        {recentActivity.map((s) => (
-          <li>
-            <span>
-              <strong>{s.name}</strong> — {s.online ? 'price update' : 'shop marked offline'}
-            </span>
-            <time>{timeAgo(s.lastUpdated)}</time>
-          </li>
-        ))}
-      </ul>
-    </div>
+      <div class="widget">
+        <div class="widget__label">Products configured</div>
+        <div class="widget__value" id="stat-products">0</div>
+        <div class="widget__meta">across all shops</div>
+      </div>
+      <div class="widget">
+        <div class="widget__label">Total value for sale</div>
+        <div class="widget__value" id="stat-value">0<span style="color:var(--text-faint); font-size:15px;"> Essence</span></div>
+        <div class="widget__meta">estimated at unit price</div>
+      </div>
+      <div class="widget">
+        <div class="widget__label">Out of stock</div>
+        <div class="widget__value" id="stat-outofstock">0</div>
+        <div class="widget__meta">need restocking</div>
+      </div>
+    </section>
 
-    <div style="display:flex; flex-direction:column; gap:14px;">
+    <div class="home-columns">
+      <div class="panel">
+        <div class="panel__title">
+          Newest shops
+          <a href="/shops" style="font-size:12px; font-weight:500;">all shops</a>
+        </div>
+        <ul class="activity-list" id="newest-shops"></ul>
+      </div>
+
       <div class="panel">
         <div class="panel__title">Low stock</div>
-        {lowStock.length === 0 ? (
-          <p style="color:var(--text-dim); font-size:13.5px; margin:0;">No products under threshold right now.</p>
-        ) : (
-          <ul class="lowstock-list">
-            {lowStock.slice(0, 5).map((p) => (
-              <li>
-                <a href={`/products/${p.slug}`}>{getCatalogItem(p.minecraftId)?.name ?? p.minecraftId}</a>
-                <span class="lowstock-qty lowstock-qty--zero">{p.sell?.quantity} left</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      <div class="panel">
-        <div class="panel__title">Online shops</div>
-        <ul class="shops-mini-list">
-          {shops.filter((s) => s.online).slice(0, 5).map((s) => (
-            <li>
-              <a href={`/shops/${s.slug}`}>{s.name}</a>
-              <span class="shop-coords">X {s.x} Z {s.z}</span>
-            </li>
-          ))}
-        </ul>
+        <ul class="lowstock-list" id="low-stock"></ul>
+        <p class="widget__meta" id="low-stock-empty" hidden>No products under threshold right now.</p>
       </div>
     </div>
   </div>
 </BaseLayout>
+
+<script>
+  interface Shop { id: number; name: string; slug: string; x: number | null; z: number | null; created_at: string; }
+  interface ShopItem {
+    id: number; minecraft_id: string; quantity: number | null; sell_price: string | null;
+    catalog: { name: string; image_url: string } | null;
+  }
+
+  function escapeHtml(value: string): string {
+    const div = document.createElement('div');
+    div.textContent = value;
+    return div.innerHTML;
+  }
+
+  (async () => {
+    try {
+      const [shopsRes, productsRes] = await Promise.all([
+        fetch('/api/shops'),
+        fetch('/api/products'),
+      ]);
+      const { shops } = (await shopsRes.json()) as { shops: Shop[] };
+      const { items } = (await productsRes.json()) as { items: ShopItem[] };
+
+      (document.getElementById('stat-shops') as HTMLElement).textContent = String(shops.length);
+      (document.getElementById('stat-products') as HTMLElement).textContent = String(items.length);
+
+      const totalValue = items.reduce((sum, i) => {
+        const price = i.sell_price !== null ? Number(i.sell_price) : 0;
+        const qty = i.quantity !== null ? Number(i.quantity) : 0;
+        return sum + price * qty;
+      }, 0);
+      (document.getElementById('stat-value') as HTMLElement).innerHTML =
+        `${totalValue.toFixed(1)}<span style="color:var(--text-faint); font-size:15px;"> Essence</span>`;
+
+      const outOfStock = items.filter((i) => i.sell_price !== null && (i.quantity ?? 0) === 0).length;
+      (document.getElementById('stat-outofstock') as HTMLElement).textContent = String(outOfStock);
+
+      const newestShopsEl = document.getElementById('newest-shops') as HTMLElement;
+      newestShopsEl.innerHTML = shops.slice(0, 6)
+        .map((s) => `<li><span><strong>${escapeHtml(s.name)}</strong> — new shop</span><time>${new Date(s.created_at).toLocaleDateString()}</time></li>`)
+        .join('') || '<li>No shops yet.</li>';
+
+      const lowStock = items
+        .filter((i) => i.sell_price !== null && (i.quantity ?? 0) > 0 && (i.quantity ?? 0) <= 20)
+        .sort((a, b) => (a.quantity ?? 0) - (b.quantity ?? 0))
+        .slice(0, 5);
+      const lowStockEl = document.getElementById('low-stock') as HTMLElement;
+      const lowStockEmpty = document.getElementById('low-stock-empty') as HTMLElement;
+      lowStockEmpty.hidden = lowStock.length > 0;
+      lowStockEl.innerHTML = lowStock
+        .map((i) => `<li><a href="/products/detail?id=${i.id}">${escapeHtml(i.catalog?.name ?? i.minecraft_id)}</a><span class="lowstock-qty lowstock-qty--zero">${i.quantity} left</span></li>`)
+        .join('');
+
+      document.getElementById('home-loading')!.hidden = true;
+      document.getElementById('home-content')!.hidden = false;
+    } catch {
+      document.getElementById('home-loading')!.textContent = "Couldn't load live data right now.";
+    }
+  })();
+</script>
