@@ -81,7 +81,10 @@ import Topbar from '@/components/Topbar.astro';
       <div class="field"><label>Directions</label><textarea name="directions">${escapeHtml(shop.directions ?? '')}</textarea></div>
       <div class="shop-edit__actions">
         <span class="shop-edit__status"></span>
-        <button class="btn btn--primary" type="submit">Save changes</button>
+        <div style="display:flex; gap:10px;">
+          <a class="btn" href="/dashboard/products?shop=${shop.id}">Manage products</a>
+          <button class="btn btn--primary" type="submit">Save changes</button>
+        </div>
       </div>
     `;
 

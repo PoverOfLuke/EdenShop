@@ -902,6 +902,8 @@ a:hover { text-decoration: underline; }
 .shop-edit__status--ok { color: var(--emerald); }
 .shop-edit__status--error { color: var(--redstone); }
 
+.catalog-result:hover { background: var(--surface-raised); }
+
 .dashboard-empty {
   text-align: center;
   padding: 40px 20px;

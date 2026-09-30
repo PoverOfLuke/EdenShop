@@ -16,9 +16,18 @@ import {
   getShopById,
   createShop,
   updateShop,
+  ensureShopItemsTable,
+  getShopItems,
+  getShopItemById,
+  createShopItem,
+  updateShopItem,
+  deleteShopItem,
   type Merchant,
+  type Shop,
   type ShopInput,
+  type ShopItemInput,
 } from './db';
+import { getCatalogItem, catalogItemExists, searchCatalog } from './catalog';
 
 function json(data: unknown, status = 200, extraHeaders?: Headers): Response {
   const headers = extraHeaders ?? new Headers();
@@ -83,6 +92,12 @@ function handleLogout(): Response {
   return redirect('/', headers);
 }
 
+/**
+ * Centralized auth check, reused by every /api/merchant/* and /api/auth/me
+ * handler. Distinguishes *why* a request is unauthenticated so the client
+ * (and logs) can tell "no/invalid cookie" apart from "cookie valid but
+ * merchant vanished" apart from "logged in but not approved yet".
+ */
 async function requireApprovedMerchant(
   request: Request,
   env: Env
@@ -104,6 +119,22 @@ async function requireApprovedMerchant(
   }
 
   return { merchant };
+}
+
+/**
+ * Ownership check reused by every endpoint that operates on a specific shop
+ * (shop edits, and every shop_items endpoint). Never trusts a shop_id from
+ * the client beyond "does it belong to this session's merchant".
+ */
+async function requireOwnedShop(
+  env: Env,
+  merchant: Merchant,
+  shopId: number
+): Promise<{ shop: Shop } | { response: Response }> {
+  const shop = await getShopById(env, shopId);
+  if (!shop) return { response: json({ error: 'shop_not_found' }, 404) };
+  if (shop.merchant_id !== merchant.id) return { response: json({ error: 'forbidden' }, 403) };
+  return { shop };
 }
 
 async function handleMe(request: Request, env: Env): Promise<Response> {
@@ -150,9 +181,9 @@ function parseShopInput(body: unknown): { input: ShopInput } | { error: string }
   return { input: { name, slug, x, z, description, directions } };
 }
 
-function isDuplicateSlugError(err: unknown): boolean {
+function isDuplicateKeyError(err: unknown): boolean {
   const message = err instanceof Error ? err.message : String(err);
-  return message.includes('duplicate key') || message.includes('shops_slug_key');
+  return message.includes('duplicate key');
 }
 
 async function handleShopsCollection(request: Request, env: Env): Promise<Response> {
@@ -180,7 +211,7 @@ async function handleShopsCollection(request: Request, env: Env): Promise<Respon
       const shop = await createShop(env, merchant.id, parsed.input);
       return json({ shop }, 201);
     } catch (err) {
-      if (isDuplicateSlugError(err)) {
+      if (isDuplicateKeyError(err)) {
         return json({ error: 'A shop with this slug already exists.' }, 409);
       }
       return json({ error: 'Could not create the shop.' }, 500);
@@ -190,18 +221,17 @@ async function handleShopsCollection(request: Request, env: Env): Promise<Respon
   return json({ error: 'Method not allowed.' }, 405);
 }
 
-async function handleShopItem(request: Request, env: Env, shopId: number): Promise<Response> {
+async function handleShopRecordUpdate(request: Request, env: Env, shopId: number): Promise<Response> {
   const result = await requireApprovedMerchant(request, env);
   if ('response' in result) return result.response;
   const { merchant } = result;
 
+  const owned = await requireOwnedShop(env, merchant, shopId);
+  if ('response' in owned) return owned.response;
+
   if (request.method !== 'PUT') {
     return json({ error: 'Method not allowed.' }, 405);
   }
-
-  const existing = await getShopById(env, shopId);
-  if (!existing) return json({ error: 'Shop not found.' }, 404);
-  if (existing.merchant_id !== merchant.id) return json({ error: 'Not your shop.' }, 403);
 
   let body: unknown;
   try {
@@ -217,11 +247,190 @@ async function handleShopItem(request: Request, env: Env, shopId: number): Promi
     const shop = await updateShop(env, shopId, parsed.input);
     return json({ shop });
   } catch (err) {
-    if (isDuplicateSlugError(err)) {
+    if (isDuplicateKeyError(err)) {
       return json({ error: 'A shop with this slug already exists.' }, 409);
     }
     return json({ error: 'Could not update the shop.' }, 500);
   }
+}
+
+// ---------------------------------------------------------------------------
+// /api/catalog/search — public, read-only lookup into the static catalog.
+// ---------------------------------------------------------------------------
+
+function handleCatalogSearch(request: Request): Response {
+  const url = new URL(request.url);
+  const q = url.searchParams.get('q') ?? '';
+  return json({ items: searchCatalog(q) });
+}
+
+// ---------------------------------------------------------------------------
+// /api/merchant/shops/:shopId/items
+// ---------------------------------------------------------------------------
+
+function num(value: unknown): number | null | 'invalid' {
+  if (value === null || value === undefined || value === '') return null;
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0) return 'invalid';
+  return n;
+}
+
+function parseShopItemInput(body: unknown): { input: ShopItemInput } | { error: string } {
+  const b = (body ?? {}) as Record<string, unknown>;
+
+  const minecraftId = typeof b.minecraftId === 'string' ? b.minecraftId.trim() : '';
+  if (!minecraftId) return { error: 'Choose an item from the catalog.' };
+  if (!catalogItemExists(minecraftId)) return { error: 'That item is not in the Minecraft catalog.' };
+
+  const fields = [
+    'quantity',
+    'compactedQuantity',
+    'essenceQuantity',
+    'sellAmount',
+    'sellPrice',
+    'buyAmount',
+    'buyPrice',
+    'compactedSellAmount',
+    'compactedSellPrice',
+    'compactedBuyAmount',
+    'compactedBuyPrice',
+  ] as const;
+
+  const parsed: Record<string, number | null> = {};
+  for (const field of fields) {
+    const value = num(b[field]);
+    if (value === 'invalid') return { error: `${field} must be a number >= 0.` };
+    parsed[field] = value;
+  }
+
+  // A sell/buy pair only counts as "configured" when BOTH amount and price
+  // are set; a lone amount or a lone price is treated as not configured.
+  const sellConfigured = parsed.sellAmount !== null && parsed.sellPrice !== null;
+  const buyConfigured = parsed.buyAmount !== null && parsed.buyPrice !== null;
+  const compactedSellConfigured = parsed.compactedSellAmount !== null && parsed.compactedSellPrice !== null;
+  const compactedBuyConfigured = parsed.compactedBuyAmount !== null && parsed.compactedBuyPrice !== null;
+
+  if (!sellConfigured && !buyConfigured && !compactedSellConfigured && !compactedBuyConfigured) {
+    return { error: 'Configure at least one of: sell, buy, compacted sell, compacted buy.' };
+  }
+
+  // Drop half-filled pairs instead of silently keeping a stray amount/price.
+  if (!sellConfigured) { parsed.sellAmount = null; parsed.sellPrice = null; }
+  if (!buyConfigured) { parsed.buyAmount = null; parsed.buyPrice = null; }
+  if (!compactedSellConfigured) { parsed.compactedSellAmount = null; parsed.compactedSellPrice = null; }
+  if (!compactedBuyConfigured) { parsed.compactedBuyAmount = null; parsed.compactedBuyPrice = null; }
+
+  return {
+    input: {
+      minecraftId,
+      quantity: parsed.quantity,
+      compactedQuantity: parsed.compactedQuantity,
+      essenceQuantity: parsed.essenceQuantity,
+      sellAmount: parsed.sellAmount,
+      sellPrice: parsed.sellPrice,
+      buyAmount: parsed.buyAmount,
+      buyPrice: parsed.buyPrice,
+      compactedSellAmount: parsed.compactedSellAmount,
+      compactedSellPrice: parsed.compactedSellPrice,
+      compactedBuyAmount: parsed.compactedBuyAmount,
+      compactedBuyPrice: parsed.compactedBuyPrice,
+    },
+  };
+}
+
+function enrichShopItem(item: Awaited<ReturnType<typeof getShopItems>>[number]) {
+  const catalog = getCatalogItem(item.minecraft_id);
+  return {
+    ...item,
+    catalog: catalog
+      ? { name: catalog.name, category: catalog.category, image_url: catalog.image_url }
+      : null,
+  };
+}
+
+async function handleShopItemsCollection(request: Request, env: Env, shopId: number): Promise<Response> {
+  const result = await requireApprovedMerchant(request, env);
+  if ('response' in result) return result.response;
+  const { merchant } = result;
+
+  const owned = await requireOwnedShop(env, merchant, shopId);
+  if ('response' in owned) return owned.response;
+
+  await ensureShopItemsTable(env);
+
+  if (request.method === 'GET') {
+    const items = await getShopItems(env, shopId);
+    return json({ shop: owned.shop, items: items.map(enrichShopItem) });
+  }
+
+  if (request.method === 'POST') {
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return json({ error: 'Invalid JSON body.' }, 400);
+    }
+
+    const parsed = parseShopItemInput(body);
+    if ('error' in parsed) return json({ error: parsed.error }, 400);
+
+    try {
+      const item = await createShopItem(env, shopId, parsed.input);
+      return json({ shop: owned.shop, item: enrichShopItem(item) }, 201);
+    } catch (err) {
+      if (isDuplicateKeyError(err)) {
+        return json({ error: 'This item is already configured for this shop.' }, 409);
+      }
+      return json({ error: 'Could not add the item.' }, 500);
+    }
+  }
+
+  return json({ error: 'Method not allowed.' }, 405);
+}
+
+async function handleShopItemDetail(request: Request, env: Env, shopId: number, itemId: number): Promise<Response> {
+  const result = await requireApprovedMerchant(request, env);
+  if ('response' in result) return result.response;
+  const { merchant } = result;
+
+  const owned = await requireOwnedShop(env, merchant, shopId);
+  if ('response' in owned) return owned.response;
+
+  await ensureShopItemsTable(env);
+
+  const existing = await getShopItemById(env, itemId);
+  if (!existing || existing.shop_id !== shopId) {
+    return json({ error: 'Item not found.' }, 404);
+  }
+
+  if (request.method === 'PUT') {
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return json({ error: 'Invalid JSON body.' }, 400);
+    }
+
+    const parsed = parseShopItemInput(body);
+    if ('error' in parsed) return json({ error: parsed.error }, 400);
+
+    try {
+      const item = await updateShopItem(env, itemId, parsed.input);
+      return json({ item: enrichShopItem(item) });
+    } catch (err) {
+      if (isDuplicateKeyError(err)) {
+        return json({ error: 'This item is already configured for this shop.' }, 409);
+      }
+      return json({ error: 'Could not update the item.' }, 500);
+    }
+  }
+
+  if (request.method === 'DELETE') {
+    await deleteShopItem(env, itemId);
+    return json({ ok: true });
+  }
+
+  return json({ error: 'Method not allowed.' }, 405);
 }
 
 // ---------------------------------------------------------------------------
@@ -234,7 +443,6 @@ export default {
     const { pathname } = url;
 
     // TEMPORARY — remove once the env var issue is confirmed fixed.
-    // Reports only whether each binding is present, never its value.
     if (pathname === '/api/debug/env') {
       return json({
         DISCORD_CLIENT_ID: Boolean(env.DISCORD_CLIENT_ID),
@@ -249,10 +457,19 @@ export default {
     if (pathname === '/api/auth/discord/callback') return handleDiscordCallback(request, env);
     if (pathname === '/api/auth/logout') return handleLogout();
     if (pathname === '/api/auth/me') return handleMe(request, env);
+    if (pathname === '/api/catalog/search') return handleCatalogSearch(request);
     if (pathname === '/api/merchant/shops') return handleShopsCollection(request, env);
 
     const shopMatch = pathname.match(/^\/api\/merchant\/shops\/(\d+)$/);
-    if (shopMatch) return handleShopItem(request, env, Number(shopMatch[1]));
+    if (shopMatch) return handleShopRecordUpdate(request, env, Number(shopMatch[1]));
+
+    const itemsCollectionMatch = pathname.match(/^\/api\/merchant\/shops\/(\d+)\/items$/);
+    if (itemsCollectionMatch) return handleShopItemsCollection(request, env, Number(itemsCollectionMatch[1]));
+
+    const itemDetailMatch = pathname.match(/^\/api\/merchant\/shops\/(\d+)\/items\/(\d+)$/);
+    if (itemDetailMatch) {
+      return handleShopItemDetail(request, env, Number(itemDetailMatch[1]), Number(itemDetailMatch[2]));
+    }
 
     // Everything else: serve the static Astro site as before.
     return env.ASSETS.fetch(request);

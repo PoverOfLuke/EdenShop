@@ -1,0 +1,426 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import Topbar from '@/components/Topbar.astro';
+---
+<BaseLayout title="Products" activeSection="dashboard">
+  <Topbar slot="topbar" title="Products" />
+
+  <p class="breadcrumb"><a href="/dashboard">My Shops</a> / <span id="shop-name-crumb">…</span></p>
+
+  <div id="page-guard" class="dashboard-empty">Checking your session…</div>
+
+  <div id="page-content" hidden>
+    <div class="shops-toolbar">
+      <span class="widget__meta" id="item-count" style="font-size:13px;"></span>
+      <button class="btn btn--primary" id="add-item-toggle" type="button">+ Add product</button>
+    </div>
+
+    <div id="add-item-panel" class="panel shop-edit" hidden></div>
+
+    <div id="item-list" class="shop-edit-list"></div>
+    <div id="no-items" class="dashboard-empty" hidden>No products configured yet — add one above.</div>
+  </div>
+</BaseLayout>
+
+<script>
+  interface CatalogRef {
+    name: string;
+    category: string;
+    image_url: string;
+  }
+
+  interface ShopItem {
+    id: number;
+    minecraft_id: string;
+    quantity: number | null;
+    compacted_quantity: number | null;
+    essence_quantity: string | null;
+    sell_amount: number | null;
+    sell_price: string | null;
+    buy_amount: number | null;
+    buy_price: string | null;
+    compacted_sell_amount: number | null;
+    compacted_sell_price: string | null;
+    compacted_buy_amount: number | null;
+    compacted_buy_price: string | null;
+    catalog: CatalogRef | null;
+  }
+
+  const shopId = new URLSearchParams(window.location.search).get('shop');
+
+  const guard = document.getElementById('page-guard') as HTMLElement;
+  const content = document.getElementById('page-content') as HTMLElement;
+  const shopNameCrumb = document.getElementById('shop-name-crumb') as HTMLElement;
+  const itemList = document.getElementById('item-list') as HTMLElement;
+  const noItems = document.getElementById('no-items') as HTMLElement;
+  const itemCount = document.getElementById('item-count') as HTMLElement;
+  const addToggle = document.getElementById('add-item-toggle') as HTMLButtonElement;
+  const addPanel = document.getElementById('add-item-panel') as HTMLElement;
+
+  if (!shopId) {
+    window.location.replace('/dashboard');
+  }
+
+  function escapeHtml(value: string): string {
+    const div = document.createElement('div');
+    div.textContent = value;
+    return div.innerHTML;
+  }
+
+  function itemIcon(catalog: CatalogRef | null, name: string): string {
+    const alt = escapeHtml(catalog?.name ?? name);
+    const src = catalog?.image_url ?? '';
+    return `<span class="item-icon-wrap">
+      <img class="item-icon" src="${escapeHtml(src)}" alt="${alt}"
+        onerror="this.style.display='none';this.parentElement.classList.add('item-icon-wrap--missing')" />
+    </span>`;
+  }
+
+  function fmtEssence(value: string | null): string {
+    if (value === null) return '—';
+    return `${Number(value)} Essence`;
+  }
+
+  function summaryLine(item: ShopItem): string {
+    const parts: string[] = [];
+    if (item.sell_amount !== null && item.sell_price !== null) {
+      parts.push(`Sells ${item.sell_amount} for ${fmtEssence(item.sell_price)}`);
+    }
+    if (item.buy_amount !== null && item.buy_price !== null) {
+      const budget = item.essence_quantity !== null ? ` (budget: ${fmtEssence(item.essence_quantity)})` : '';
+      parts.push(`Buys ${item.buy_amount} for ${fmtEssence(item.buy_price)}${budget}`);
+    }
+    if (item.compacted_sell_amount !== null && item.compacted_sell_price !== null) {
+      parts.push(`Compacted sell ${item.compacted_sell_amount} for ${fmtEssence(item.compacted_sell_price)}`);
+    }
+    if (item.compacted_buy_amount !== null && item.compacted_buy_price !== null) {
+      parts.push(`Compacted buy ${item.compacted_buy_amount} for ${fmtEssence(item.compacted_buy_price)}`);
+    }
+    return parts.length ? parts.join(' · ') : 'No trade modes configured';
+  }
+
+  // -- Editable trade-mode fields, shared between the "add" and "edit" forms --
+
+  function tradeFieldsHtml(prefix: string, item?: ShopItem): string {
+    const sellOn = !!item && item.sell_amount !== null && item.sell_price !== null;
+    const buyOn = !!item && item.buy_amount !== null && item.buy_price !== null;
+    const compactedOn =
+      !!item &&
+      (item.compacted_quantity !== null ||
+        (item.compacted_sell_amount !== null && item.compacted_sell_price !== null) ||
+        (item.compacted_buy_amount !== null && item.compacted_buy_price !== null));
+
+    return `
+      <div class="field"><label>Available quantity</label>
+        <input name="quantity" type="number" min="0" value="${item?.quantity ?? ''}" /></div>
+
+      <label style="display:flex; align-items:center; gap:8px; font-size:13px; color:var(--text-dim); margin:12px 0 6px;">
+        <input type="checkbox" name="sellToggle" ${sellOn ? 'checked' : ''} /> Sell to players
+      </label>
+      <div class="shop-edit__row sell-fields" style="${sellOn ? '' : 'display:none;'}">
+        <div></div>
+        <div class="field"><label>Amount</label><input name="sellAmount" type="number" min="0" value="${item?.sell_amount ?? ''}" /></div>
+        <div class="field"><label>Price (Essence)</label><input name="sellPrice" type="number" min="0" step="0.01" value="${item?.sell_price ?? ''}" /></div>
+      </div>
+
+      <label style="display:flex; align-items:center; gap:8px; font-size:13px; color:var(--text-dim); margin:12px 0 6px;">
+        <input type="checkbox" name="buyToggle" ${buyOn ? 'checked' : ''} /> Buy from players
+      </label>
+      <div class="buy-fields" style="${buyOn ? '' : 'display:none;'}">
+        <div class="shop-edit__row">
+          <div></div>
+          <div class="field"><label>Amount</label><input name="buyAmount" type="number" min="0" value="${item?.buy_amount ?? ''}" /></div>
+          <div class="field"><label>Price (Essence)</label><input name="buyPrice" type="number" min="0" step="0.01" value="${item?.buy_price ?? ''}" /></div>
+        </div>
+        <div class="field"><label>Essence available for this item (buying budget)</label>
+          <input name="essenceQuantity" type="number" min="0" step="0.01" value="${item?.essence_quantity ?? ''}" /></div>
+      </div>
+
+      <label style="display:flex; align-items:center; gap:8px; font-size:13px; color:var(--text-dim); margin:12px 0 6px;">
+        <input type="checkbox" name="compactedToggle" ${compactedOn ? 'checked' : ''} /> Compacted version
+      </label>
+      <div class="compacted-fields" style="${compactedOn ? '' : 'display:none;'}">
+        <div class="field"><label>Compacted quantity available</label>
+          <input name="compactedQuantity" type="number" min="0" value="${item?.compacted_quantity ?? ''}" /></div>
+        <div class="shop-edit__row">
+          <div></div>
+          <div class="field"><label>Sell amount</label><input name="compactedSellAmount" type="number" min="0" value="${item?.compacted_sell_amount ?? ''}" /></div>
+          <div class="field"><label>Sell price</label><input name="compactedSellPrice" type="number" min="0" step="0.01" value="${item?.compacted_sell_price ?? ''}" /></div>
+        </div>
+        <div class="shop-edit__row">
+          <div></div>
+          <div class="field"><label>Buy amount</label><input name="compactedBuyAmount" type="number" min="0" value="${item?.compacted_buy_amount ?? ''}" /></div>
+          <div class="field"><label>Buy price</label><input name="compactedBuyPrice" type="number" min="0" step="0.01" value="${item?.compacted_buy_price ?? ''}" /></div>
+        </div>
+      </div>
+    `;
+  }
+
+  function wireToggles(root: HTMLElement) {
+    const sellToggle = root.querySelector('input[name="sellToggle"]') as HTMLInputElement;
+    const buyToggle = root.querySelector('input[name="buyToggle"]') as HTMLInputElement;
+    const compactedToggle = root.querySelector('input[name="compactedToggle"]') as HTMLInputElement;
+    const sellFields = root.querySelector('.sell-fields') as HTMLElement;
+    const buyFields = root.querySelector('.buy-fields') as HTMLElement;
+    const compactedFields = root.querySelector('.compacted-fields') as HTMLElement;
+
+    sellToggle?.addEventListener('change', () => { sellFields.style.display = sellToggle.checked ? '' : 'none'; });
+    buyToggle?.addEventListener('change', () => { buyFields.style.display = buyToggle.checked ? '' : 'none'; });
+    compactedToggle?.addEventListener('change', () => { compactedFields.style.display = compactedToggle.checked ? '' : 'none'; });
+  }
+
+  function formToItemPayload(root: HTMLElement, minecraftId: string) {
+    const val = (name: string) => (root.querySelector(`[name="${name}"]`) as HTMLInputElement)?.value ?? '';
+    const checked = (name: string) => (root.querySelector(`[name="${name}"]`) as HTMLInputElement)?.checked ?? false;
+
+    const orNull = (v: string) => (v === '' ? null : v);
+
+    return {
+      minecraftId,
+      quantity: orNull(val('quantity')),
+      compactedQuantity: checked('compactedToggle') ? orNull(val('compactedQuantity')) : null,
+      essenceQuantity: checked('buyToggle') ? orNull(val('essenceQuantity')) : null,
+      sellAmount: checked('sellToggle') ? orNull(val('sellAmount')) : null,
+      sellPrice: checked('sellToggle') ? orNull(val('sellPrice')) : null,
+      buyAmount: checked('buyToggle') ? orNull(val('buyAmount')) : null,
+      buyPrice: checked('buyToggle') ? orNull(val('buyPrice')) : null,
+      compactedSellAmount: checked('compactedToggle') ? orNull(val('compactedSellAmount')) : null,
+      compactedSellPrice: checked('compactedToggle') ? orNull(val('compactedSellPrice')) : null,
+      compactedBuyAmount: checked('compactedToggle') ? orNull(val('compactedBuyAmount')) : null,
+      compactedBuyPrice: checked('compactedToggle') ? orNull(val('compactedBuyPrice')) : null,
+    };
+  }
+
+  // -- Existing item row (list + inline edit) --
+
+  function buildItemRow(item: ShopItem) {
+    const card = document.createElement('div');
+    card.className = 'panel shop-edit';
+    card.innerHTML = `
+      <div class="shop-edit__title" style="display:flex; align-items:center; gap:10px;">
+        ${itemIcon(item.catalog, item.minecraft_id)}
+        <span>${escapeHtml(item.catalog?.name ?? item.minecraft_id)}</span>
+      </div>
+      <p class="widget__meta" style="margin:-6px 0 12px;">${escapeHtml(summaryLine(item))}</p>
+      <div class="item-edit-form" hidden></div>
+      <div class="shop-edit__actions">
+        <span class="shop-edit__status"></span>
+        <div style="display:flex; gap:10px;">
+          <button class="btn" type="button" data-action="toggle-edit">Edit</button>
+          <button class="btn" type="button" data-action="delete" style="color:var(--redstone);">Delete</button>
+        </div>
+      </div>
+    `;
+
+    const statusEl = card.querySelector('.shop-edit__status') as HTMLElement;
+    const editBox = card.querySelector('.item-edit-form') as HTMLElement;
+    const toggleBtn = card.querySelector('[data-action="toggle-edit"]') as HTMLButtonElement;
+    const deleteBtn = card.querySelector('[data-action="delete"]') as HTMLButtonElement;
+
+    toggleBtn.addEventListener('click', () => {
+      if (editBox.hidden && editBox.innerHTML === '') {
+        editBox.innerHTML = `<form>${tradeFieldsHtml('edit', item)}
+          <div class="shop-edit__actions"><span class="shop-edit__status" data-role="edit-status"></span>
+          <button class="btn btn--primary" type="submit">Save changes</button></div></form>`;
+        wireToggles(editBox);
+
+        const form = editBox.querySelector('form') as HTMLFormElement;
+        const editStatus = editBox.querySelector('[data-role="edit-status"]') as HTMLElement;
+
+        form.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          editStatus.textContent = 'Saving…';
+          editStatus.className = 'shop-edit__status';
+          try {
+            const res = await fetch(`/api/merchant/shops/${shopId}/items/${item.id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'same-origin',
+              body: JSON.stringify(formToItemPayload(form, item.minecraft_id)),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+              editStatus.textContent = data.error ?? 'Could not save.';
+              editStatus.className = 'shop-edit__status shop-edit__status--error';
+              return;
+            }
+            editStatus.textContent = 'Saved.';
+            editStatus.className = 'shop-edit__status shop-edit__status--ok';
+            await loadItems();
+          } catch {
+            editStatus.textContent = 'Network error.';
+            editStatus.className = 'shop-edit__status shop-edit__status--error';
+          }
+        });
+      }
+      editBox.hidden = !editBox.hidden;
+    });
+
+    deleteBtn.addEventListener('click', async () => {
+      if (!confirm(`Remove ${item.catalog?.name ?? item.minecraft_id} from this shop?`)) return;
+      statusEl.textContent = 'Deleting…';
+      statusEl.className = 'shop-edit__status';
+      try {
+        const res = await fetch(`/api/merchant/shops/${shopId}/items/${item.id}`, {
+          method: 'DELETE',
+          credentials: 'same-origin',
+        });
+        if (!res.ok) {
+          statusEl.textContent = 'Could not delete.';
+          statusEl.className = 'shop-edit__status shop-edit__status--error';
+          return;
+        }
+        await loadItems();
+      } catch {
+        statusEl.textContent = 'Network error.';
+        statusEl.className = 'shop-edit__status shop-edit__status--error';
+      }
+    });
+
+    return card;
+  }
+
+  // -- Add product panel (catalog search + trade fields) --
+
+  function renderAddPanel() {
+    addPanel.innerHTML = `
+      <div class="shop-edit__title">Add product</div>
+      <div class="field" id="catalog-picker">
+        <label>Find an item</label>
+        <input type="text" id="catalog-search" placeholder="Search the Minecraft catalog…" autocomplete="off" />
+        <div id="catalog-results" class="panel" style="margin-top:6px; padding:8px; display:none; max-height:220px; overflow-y:auto;"></div>
+      </div>
+      <div id="selected-item" style="display:none; align-items:center; gap:10px; margin-bottom:14px;">
+        <span id="selected-item-icon"></span>
+        <span id="selected-item-name" style="font-weight:600;"></span>
+        <button class="btn" type="button" id="change-item">Change</button>
+      </div>
+      <form id="add-item-form" hidden>
+        <div id="add-item-fields"></div>
+        <div class="shop-edit__actions">
+          <span class="shop-edit__status" id="add-item-status"></span>
+          <button class="btn btn--primary" type="submit">Add to shop</button>
+        </div>
+      </form>
+    `;
+
+    const searchInput = document.getElementById('catalog-search') as HTMLInputElement;
+    const results = document.getElementById('catalog-results') as HTMLElement;
+    const picker = document.getElementById('catalog-picker') as HTMLElement;
+    const selectedBox = document.getElementById('selected-item') as HTMLElement;
+    const selectedIcon = document.getElementById('selected-item-icon') as HTMLElement;
+    const selectedName = document.getElementById('selected-item-name') as HTMLElement;
+    const changeBtn = document.getElementById('change-item') as HTMLButtonElement;
+    const form = document.getElementById('add-item-form') as HTMLFormElement;
+    const fieldsBox = document.getElementById('add-item-fields') as HTMLElement;
+    const addStatus = document.getElementById('add-item-status') as HTMLElement;
+
+    let selectedId = '';
+    let debounceTimer: ReturnType<typeof setTimeout>;
+
+    searchInput.addEventListener('input', () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(async () => {
+        const q = searchInput.value.trim();
+        const res = await fetch(`/api/catalog/search?q=${encodeURIComponent(q)}`);
+        const data = (await res.json()) as { items: (CatalogRef & { minecraft_id: string })[] };
+        const items = data.items;
+        results.innerHTML = items
+          .map(
+            (i) => `<div class="catalog-result" data-id="${escapeHtml(i.minecraft_id)}"
+              style="display:flex; align-items:center; gap:8px; padding:6px 4px; cursor:pointer; border-radius:4px;">
+              ${itemIcon(i, i.name)} <span>${escapeHtml(i.name)}</span></div>`
+          )
+          .join('');
+        results.style.display = items.length ? 'block' : 'none';
+
+        results.querySelectorAll('.catalog-result').forEach((el) => {
+          el.addEventListener('click', () => {
+            const id = (el as HTMLElement).dataset.id as string;
+            const found = items.find((i) => i.minecraft_id === id);
+            if (!found) return;
+            selectedId = id;
+            selectedIcon.innerHTML = itemIcon(found, found.name);
+            selectedName.textContent = found.name;
+            picker.style.display = 'none';
+            selectedBox.style.display = 'flex';
+            fieldsBox.innerHTML = tradeFieldsHtml('add');
+            wireToggles(fieldsBox);
+            form.hidden = false;
+            results.style.display = 'none';
+          });
+        });
+      }, 250);
+    });
+
+    changeBtn.addEventListener('click', () => {
+      selectedId = '';
+      picker.style.display = '';
+      selectedBox.style.display = 'none';
+      form.hidden = true;
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!selectedId) return;
+      addStatus.textContent = 'Adding…';
+      addStatus.className = 'shop-edit__status';
+      try {
+        const res = await fetch(`/api/merchant/shops/${shopId}/items`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify(formToItemPayload(fieldsBox, selectedId)),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          addStatus.textContent = data.error ?? 'Could not add the item.';
+          addStatus.className = 'shop-edit__status shop-edit__status--error';
+          return;
+        }
+        addStatus.textContent = 'Added.';
+        addStatus.className = 'shop-edit__status shop-edit__status--ok';
+        addPanel.hidden = true;
+        await loadItems();
+      } catch {
+        addStatus.textContent = 'Network error.';
+        addStatus.className = 'shop-edit__status shop-edit__status--error';
+      }
+    });
+  }
+
+  addToggle.addEventListener('click', () => {
+    if (addPanel.innerHTML === '') renderAddPanel();
+    addPanel.hidden = !addPanel.hidden;
+  });
+
+  async function loadItems() {
+    const res = await fetch(`/api/merchant/shops/${shopId}/items`, { credentials: 'same-origin' });
+    if (!res.ok) throw new Error('unauthorized_or_forbidden');
+    const data = (await res.json()) as { shop: { name: string }; items: ShopItem[] };
+
+    shopNameCrumb.textContent = data.shop.name;
+    itemList.innerHTML = '';
+    itemCount.textContent = `${data.items.length} product${data.items.length === 1 ? '' : 's'}`;
+    noItems.hidden = data.items.length > 0;
+
+    for (const item of data.items) {
+      itemList.appendChild(buildItemRow(item));
+    }
+  }
+
+  (async () => {
+    try {
+      const me = await fetch('/api/auth/me', { credentials: 'same-origin' });
+      if (!me.ok) {
+        window.location.replace('/login');
+        return;
+      }
+      await loadItems();
+      guard.hidden = true;
+      content.hidden = false;
+    } catch {
+      guard.textContent = "Couldn't load this shop — it may not exist or may not belong to you.";
+    }
+  })();
+</script>
