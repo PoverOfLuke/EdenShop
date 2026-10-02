@@ -552,8 +552,14 @@ async function handleAdminCatalogImport(request: Request, env: Env): Promise<Res
   if (request.method !== 'POST') return json({ error: 'Method not allowed.' }, 405);
 
   await ensureSchema(env);
-  const summary = await importStaticCatalog(env);
-  return json(summary);
+  try {
+    const summary = await importStaticCatalog(env);
+    return json(summary);
+  } catch (err) {
+    // Surfaced as JSON so the panel can print the real reason instead of a
+    // generic failure when a chunk is rejected by Postgres.
+    return json({ error: 'Catalog import failed.', detail: err instanceof Error ? err.message : String(err) }, 500);
+  }
 }
 
 function parseCatalogInput(body: unknown): { input: { minecraftId: string; name: string; category: string; imageUrl: string } } | { error: string } {

@@ -302,21 +302,46 @@ export interface CatalogItemRow {
   created_at: string;
 }
 
-/** One-time (re-runnable, idempotent) import of the bundled static catalog into Neon. */
+/** Rows per INSERT statement. 1505 items / 8 statements instead of 1505. */
+const CATALOG_IMPORT_CHUNK = 200;
+
+/**
+ * One-time (re-runnable, idempotent) import of the bundled static catalog
+ * into Neon.
+ *
+ * Batched multi-row INSERTs on purpose: the neon serverless driver talks to
+ * Neon over HTTP, so one insert per item would be ~1500 subrequests in a
+ * single Worker invocation — past the Cloudflare per-invocation limit, which
+ * kills the Worker mid-import and returns a non-JSON error to the browser.
+ */
 export async function importStaticCatalog(env: Env): Promise<{ inserted: number; total: number }> {
   const sql = getSql(env);
+  const total = staticCatalogItems.length;
   let inserted = 0;
-  for (const item of staticCatalogItems) {
-    const rows = await sql`
-      INSERT INTO catalog_items (minecraft_id, name, category, image_url)
-      VALUES (${item.minecraft_id}, ${item.name}, ${item.category}, ${item.image_url})
-      ON CONFLICT (minecraft_id) DO NOTHING
-      RETURNING id
-    `;
-    if (rows.length > 0) inserted++;
+
+  for (let start = 0; start < total; start += CATALOG_IMPORT_CHUNK) {
+    const chunk = staticCatalogItems.slice(start, start + CATALOG_IMPORT_CHUNK);
+    const placeholders: string[] = [];
+    const params: string[] = [];
+
+    for (const item of chunk) {
+      placeholders.push(`($${params.length + 1}, $${params.length + 2}, $${params.length + 3}, $${params.length + 4})`);
+      params.push(item.minecraft_id, item.name, item.category, item.image_url);
+    }
+
+    const rows = (await sql(
+      `INSERT INTO catalog_items (minecraft_id, name, category, image_url)
+       VALUES ${placeholders.join(', ')}
+       ON CONFLICT (minecraft_id) DO NOTHING
+       RETURNING id`,
+      params
+    )) as unknown as { id: number }[];
+
+    inserted += rows.length;
   }
+
   invalidateCatalogCache();
-  return { inserted, total: staticCatalogItems.length };
+  return { inserted, total };
 }
 
 export async function catalogItemExistsDb(env: Env, minecraftId: string): Promise<boolean> {

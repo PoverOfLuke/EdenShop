@@ -230,17 +230,38 @@ import Topbar from '@/components/Topbar.astro';
 
   (document.getElementById('import-catalog-btn') as HTMLButtonElement).addEventListener('click', async () => {
     const status = document.getElementById('import-status') as HTMLElement;
-    status.textContent = 'Importing… this can take a little while for 1500+ items.';
+    const btn = document.getElementById('import-catalog-btn') as HTMLButtonElement;
+    status.textContent = 'Importing…';
     status.className = 'shop-edit__status';
+    btn.disabled = true;
     try {
       const res = await fetch('/api/admin/catalog/import', { method: 'POST', credentials: 'same-origin' });
-      const data = await res.json();
+
+      // Read as text first: a Worker that dies mid-request (timeout,
+      // subrequest limit) answers with a non-JSON body, and a bare
+      // res.json() would throw and hide the reason behind "Import failed.".
+      const body = await res.text();
+      let data: { inserted?: number; total?: number; error?: string; detail?: string };
+      try {
+        data = JSON.parse(body);
+      } catch {
+        data = { error: `Unexpected response (${res.status}).`, detail: body.slice(0, 300) };
+      }
+
+      if (!res.ok || typeof data.inserted !== 'number') {
+        status.textContent = [data.error ?? 'Import failed.', data.detail].filter(Boolean).join(' — ');
+        status.className = 'shop-edit__status shop-edit__status--error';
+        return;
+      }
+
       status.textContent = `Imported ${data.inserted} new of ${data.total} total.`;
       status.className = 'shop-edit__status shop-edit__status--ok';
       await loadCatalog();
-    } catch {
-      status.textContent = 'Import failed.';
+    } catch (err) {
+      status.textContent = `Import failed. — ${err instanceof Error ? err.message : String(err)}`;
       status.className = 'shop-edit__status shop-edit__status--error';
+    } finally {
+      btn.disabled = false;
     }
   });
 
