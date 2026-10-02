@@ -28,6 +28,11 @@ import Topbar from '@/components/Topbar.astro';
           <div class="field"><label>X</label><input name="x" type="number" /></div>
           <div class="field"><label>Z</label><input name="z" type="number" /></div>
         </div>
+        <div class="shop-edit__row">
+          <div></div>
+          <div class="field"><label>Country (optional)</label><select name="countryId"><option value="">—</option></select></div>
+          <div class="field"><label>City (optional)</label><select name="cityId"><option value="">—</option></select></div>
+        </div>
         <div class="field"><label>Description</label><textarea name="description"></textarea></div>
         <div class="field"><label>Directions</label><textarea name="directions"></textarea></div>
         <div class="shop-edit__actions">
@@ -51,7 +56,11 @@ import Topbar from '@/components/Topbar.astro';
     z: number | null;
     description: string | null;
     directions: string | null;
+    country_id: number | null;
+    city_id: number | null;
   }
+  interface Country { id: number; name: string; slug: string; }
+  interface City { id: number; country_id: number; name: string; slug: string; }
 
   const guard = document.getElementById('dashboard-guard') as HTMLElement;
   const content = document.getElementById('dashboard-content') as HTMLElement;
@@ -62,6 +71,42 @@ import Topbar from '@/components/Topbar.astro';
   const newShopPanel = document.getElementById('new-shop-panel') as HTMLElement;
   const newShopForm = document.getElementById('new-shop-form') as HTMLFormElement;
   const newShopStatus = document.getElementById('new-shop-status') as HTMLElement;
+
+  let countries: Country[] = [];
+  let citiesCache: Record<number, City[]> = {};
+
+  async function citiesForCountry(countryId: number): Promise<City[]> {
+    if (!citiesCache[countryId]) {
+      const res = await fetch(`/api/cities?country_id=${countryId}`);
+      const data = (await res.json()) as { cities: City[] };
+      citiesCache[countryId] = data.cities;
+    }
+    return citiesCache[countryId];
+  }
+
+  function populateCountrySelect(select: HTMLSelectElement, selected: number | null) {
+    select.innerHTML = '<option value="">—</option>' + countries.map((c) =>
+      `<option value="${c.id}" ${c.id === selected ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('');
+  }
+
+  async function wireLocationSelects(root: HTMLElement, selectedCountryId: number | null, selectedCityId: number | null) {
+    const countrySelect = root.querySelector('[name="countryId"]') as HTMLSelectElement;
+    const citySelect = root.querySelector('[name="cityId"]') as HTMLSelectElement;
+
+    populateCountrySelect(countrySelect, selectedCountryId);
+
+    async function refreshCities(preselectCityId: number | null) {
+      const countryId = countrySelect.value ? Number(countrySelect.value) : null;
+      if (!countryId) { citySelect.innerHTML = '<option value="">—</option>'; citySelect.disabled = true; return; }
+      citySelect.disabled = false;
+      const cities = await citiesForCountry(countryId);
+      citySelect.innerHTML = '<option value="">—</option>' + cities.map((c) =>
+        `<option value="${c.id}" ${c.id === preselectCityId ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('');
+    }
+
+    countrySelect.addEventListener('change', () => refreshCities(null));
+    await refreshCities(selectedCityId);
+  }
 
   function buildShopCard(shop: Shop): HTMLElement {
     const card = document.createElement('form');
@@ -77,6 +122,11 @@ import Topbar from '@/components/Topbar.astro';
         <div class="field"><label>X</label><input name="x" type="number" value="${shop.x ?? ''}" /></div>
         <div class="field"><label>Z</label><input name="z" type="number" value="${shop.z ?? ''}" /></div>
       </div>
+      <div class="shop-edit__row">
+        <div></div>
+        <div class="field"><label>Country (optional)</label><select name="countryId"></select></div>
+        <div class="field"><label>City (optional)</label><select name="cityId"></select></div>
+      </div>
       <div class="field"><label>Description</label><textarea name="description">${escapeHtml(shop.description ?? '')}</textarea></div>
       <div class="field"><label>Directions</label><textarea name="directions">${escapeHtml(shop.directions ?? '')}</textarea></div>
       <div class="shop-edit__actions">
@@ -87,6 +137,8 @@ import Topbar from '@/components/Topbar.astro';
         </div>
       </div>
     `;
+
+    wireLocationSelects(card, shop.country_id, shop.city_id);
 
     card.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -119,8 +171,8 @@ import Topbar from '@/components/Topbar.astro';
     return card;
   }
 
-  function formToPayload(form: HTMLFormElement) {
-    const data = new FormData(form);
+  function formToPayload(form: HTMLElement) {
+    const data = new FormData(form as HTMLFormElement);
     return {
       name: data.get('name'),
       slug: data.get('slug'),
@@ -128,6 +180,8 @@ import Topbar from '@/components/Topbar.astro';
       z: data.get('z'),
       description: data.get('description'),
       directions: data.get('directions'),
+      countryId: data.get('countryId'),
+      cityId: data.get('cityId'),
     };
   }
 
@@ -196,6 +250,10 @@ import Topbar from '@/components/Topbar.astro';
         window.location.replace('/login');
         return;
       }
+      const countriesRes = await fetch('/api/countries');
+      countries = ((await countriesRes.json()) as { countries: Country[] }).countries;
+      await wireLocationSelects(newShopPanel, null, null);
+
       await loadShops();
       guard.hidden = true;
       content.hidden = false;

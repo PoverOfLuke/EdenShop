@@ -1,8 +1,10 @@
 import { neon } from '@neondatabase/serverless';
 import type { Env } from './env';
+import { staticCatalogItems } from './catalog';
 
-// Talks to the existing Neon tables (merchants, shops). Their structure is
-// NOT changed here — only read/inserted/updated through plain SQL.
+// Talks to the Neon tables. merchants/shops/shop_items structure as agreed
+// with the user is never altered destructively — only additive columns
+// (ADD COLUMN IF NOT EXISTS) and new tables (CREATE TABLE IF NOT EXISTS).
 
 export interface Merchant {
   id: number;
@@ -10,6 +12,7 @@ export interface Merchant {
   discord_username: string | null;
   display_name: string | null;
   approved: boolean;
+  is_admin: boolean;
   created_at: string;
 }
 
@@ -22,6 +25,8 @@ export interface Shop {
   z: number | null;
   description: string | null;
   directions: string | null;
+  country_id: number | null;
+  city_id: number | null;
   created_at: string;
 }
 
@@ -32,10 +37,84 @@ export interface ShopInput {
   z: number | null;
   description: string | null;
   directions: string | null;
+  countryId: number | null;
+  cityId: number | null;
 }
 
 function getSql(env: Env) {
   return neon(env.NEON_DATABASE_URL);
+}
+
+// ---------------------------------------------------------------------------
+// Schema bootstrap — idempotent, additive only. Safe to call on every
+// request that touches one of these tables/columns; Postgres no-ops the
+// IF NOT EXISTS / ADD COLUMN IF NOT EXISTS statements once applied.
+// ---------------------------------------------------------------------------
+
+let schemaEnsured = false;
+
+export async function ensureSchema(env: Env): Promise<void> {
+  if (schemaEnsured) return; // one check per Worker instance is enough
+  const sql = getSql(env);
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS shop_items (
+      id BIGSERIAL PRIMARY KEY,
+      shop_id BIGINT NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
+      minecraft_id TEXT NOT NULL,
+      quantity INTEGER,
+      compacted_quantity INTEGER,
+      essence_quantity NUMERIC(12, 2),
+      sell_amount INTEGER,
+      sell_price NUMERIC(12, 2),
+      buy_amount INTEGER,
+      buy_price NUMERIC(12, 2),
+      compacted_sell_amount INTEGER,
+      compacted_sell_price NUMERIC(12, 2),
+      compacted_buy_amount INTEGER,
+      compacted_buy_price NUMERIC(12, 2),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (shop_id, minecraft_id)
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS countries (
+      id BIGSERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      slug TEXT UNIQUE NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS cities (
+      id BIGSERIAL PRIMARY KEY,
+      country_id BIGINT NOT NULL REFERENCES countries(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      slug TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (country_id, slug)
+    )
+  `;
+
+  await sql`ALTER TABLE shops ADD COLUMN IF NOT EXISTS country_id BIGINT REFERENCES countries(id) ON DELETE SET NULL`;
+  await sql`ALTER TABLE shops ADD COLUMN IF NOT EXISTS city_id BIGINT REFERENCES cities(id) ON DELETE SET NULL`;
+  await sql`ALTER TABLE merchants ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT FALSE`;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS catalog_items (
+      id BIGSERIAL PRIMARY KEY,
+      minecraft_id TEXT UNIQUE NOT NULL,
+      name TEXT NOT NULL,
+      category TEXT NOT NULL,
+      image_url TEXT NOT NULL,
+      active BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `;
+
+  schemaEnsured = true;
 }
 
 /** Finds the merchant by discord_user_id, creating it (approved = false) if new. */
@@ -62,17 +141,39 @@ export async function getMerchantById(env: Env, id: number): Promise<Merchant | 
   return (rows[0] as unknown as Merchant) ?? null;
 }
 
-/** All shops, for the public Shops/Home pages. A shop only exists if its owning merchant was approved at creation time. */
-export async function getAllShops(env: Env): Promise<Shop[]> {
-  const sql = getSql(env);
-  const rows = await sql`SELECT * FROM shops ORDER BY created_at DESC`;
-  return rows as unknown as Shop[];
+// ---------------------------------------------------------------------------
+// Shops
+// ---------------------------------------------------------------------------
+
+export interface ShopPublic extends Shop {
+  country_name: string | null;
+  city_name: string | null;
 }
 
-export async function getShopBySlug(env: Env, slug: string): Promise<Shop | null> {
+/** All shops, with country/city names resolved, for the public Shops/Home pages. */
+export async function getAllShops(env: Env): Promise<ShopPublic[]> {
   const sql = getSql(env);
-  const rows = await sql`SELECT * FROM shops WHERE slug = ${slug} LIMIT 1`;
-  return (rows[0] as unknown as Shop) ?? null;
+  const rows = await sql`
+    SELECT s.*, c.name AS country_name, ci.name AS city_name
+    FROM shops s
+    LEFT JOIN countries c ON c.id = s.country_id
+    LEFT JOIN cities ci ON ci.id = s.city_id
+    ORDER BY s.created_at DESC
+  `;
+  return rows as unknown as ShopPublic[];
+}
+
+export async function getShopBySlug(env: Env, slug: string): Promise<ShopPublic | null> {
+  const sql = getSql(env);
+  const rows = await sql`
+    SELECT s.*, c.name AS country_name, ci.name AS city_name
+    FROM shops s
+    LEFT JOIN countries c ON c.id = s.country_id
+    LEFT JOIN cities ci ON ci.id = s.city_id
+    WHERE s.slug = ${slug}
+    LIMIT 1
+  `;
+  return (rows[0] as unknown as ShopPublic) ?? null;
 }
 
 export async function getShopsByMerchant(env: Env, merchantId: number): Promise<Shop[]> {
@@ -90,8 +191,8 @@ export async function getShopById(env: Env, id: number): Promise<Shop | null> {
 export async function createShop(env: Env, merchantId: number, input: ShopInput): Promise<Shop> {
   const sql = getSql(env);
   const rows = await sql`
-    INSERT INTO shops (merchant_id, name, slug, x, z, description, directions)
-    VALUES (${merchantId}, ${input.name}, ${input.slug}, ${input.x}, ${input.z}, ${input.description}, ${input.directions})
+    INSERT INTO shops (merchant_id, name, slug, x, z, description, directions, country_id, city_id)
+    VALUES (${merchantId}, ${input.name}, ${input.slug}, ${input.x}, ${input.z}, ${input.description}, ${input.directions}, ${input.countryId}, ${input.cityId})
     RETURNING *
   `;
   return rows[0] as unknown as Shop;
@@ -102,7 +203,8 @@ export async function updateShop(env: Env, id: number, input: ShopInput): Promis
   const rows = await sql`
     UPDATE shops
     SET name = ${input.name}, slug = ${input.slug}, x = ${input.x}, z = ${input.z},
-        description = ${input.description}, directions = ${input.directions}
+        description = ${input.description}, directions = ${input.directions},
+        country_id = ${input.countryId}, city_id = ${input.cityId}
     WHERE id = ${id}
     RETURNING *
   `;
@@ -110,10 +212,195 @@ export async function updateShop(env: Env, id: number, input: ShopInput): Promis
 }
 
 // ---------------------------------------------------------------------------
-// shop_items — products configured within a shop. The Minecraft item
-// registry itself (name/category/image) is NOT duplicated here: only
-// minecraft_id is stored, and it's resolved against the static catalog
-// (see catalog.ts) wherever items are read back.
+// Countries / Cities — managed by Admin, selected (read-only) by merchants
+// ---------------------------------------------------------------------------
+
+export interface Country {
+  id: number;
+  name: string;
+  slug: string;
+  created_at: string;
+}
+
+export interface City {
+  id: number;
+  country_id: number;
+  name: string;
+  slug: string;
+  created_at: string;
+}
+
+export async function getAllCountries(env: Env): Promise<Country[]> {
+  const sql = getSql(env);
+  const rows = await sql`SELECT * FROM countries ORDER BY name ASC`;
+  return rows as unknown as Country[];
+}
+
+export async function createCountry(env: Env, name: string, slug: string): Promise<Country> {
+  const sql = getSql(env);
+  const rows = await sql`INSERT INTO countries (name, slug) VALUES (${name}, ${slug}) RETURNING *`;
+  return rows[0] as unknown as Country;
+}
+
+export async function updateCountry(env: Env, id: number, name: string, slug: string): Promise<Country> {
+  const sql = getSql(env);
+  const rows = await sql`UPDATE countries SET name = ${name}, slug = ${slug} WHERE id = ${id} RETURNING *`;
+  return rows[0] as unknown as Country;
+}
+
+export async function deleteCountry(env: Env, id: number): Promise<void> {
+  const sql = getSql(env);
+  await sql`DELETE FROM countries WHERE id = ${id}`;
+}
+
+export async function getAllCities(env: Env): Promise<City[]> {
+  const sql = getSql(env);
+  const rows = await sql`SELECT * FROM cities ORDER BY name ASC`;
+  return rows as unknown as City[];
+}
+
+export async function getCitiesByCountry(env: Env, countryId: number): Promise<City[]> {
+  const sql = getSql(env);
+  const rows = await sql`SELECT * FROM cities WHERE country_id = ${countryId} ORDER BY name ASC`;
+  return rows as unknown as City[];
+}
+
+export async function getCityById(env: Env, id: number): Promise<City | null> {
+  const sql = getSql(env);
+  const rows = await sql`SELECT * FROM cities WHERE id = ${id} LIMIT 1`;
+  return (rows[0] as unknown as City) ?? null;
+}
+
+export async function createCity(env: Env, countryId: number, name: string, slug: string): Promise<City> {
+  const sql = getSql(env);
+  const rows = await sql`INSERT INTO cities (country_id, name, slug) VALUES (${countryId}, ${name}, ${slug}) RETURNING *`;
+  return rows[0] as unknown as City;
+}
+
+export async function updateCity(env: Env, id: number, countryId: number, name: string, slug: string): Promise<City> {
+  const sql = getSql(env);
+  const rows = await sql`UPDATE cities SET country_id = ${countryId}, name = ${name}, slug = ${slug} WHERE id = ${id} RETURNING *`;
+  return rows[0] as unknown as City;
+}
+
+export async function deleteCity(env: Env, id: number): Promise<void> {
+  const sql = getSql(env);
+  await sql`DELETE FROM cities WHERE id = ${id}`;
+}
+
+// ---------------------------------------------------------------------------
+// Catalog — Minecraft item registry, now DB-backed so Admin can manage it.
+// ---------------------------------------------------------------------------
+
+export interface CatalogItemRow {
+  id: number;
+  minecraft_id: string;
+  name: string;
+  category: string;
+  image_url: string;
+  active: boolean;
+  created_at: string;
+}
+
+/** One-time (re-runnable, idempotent) import of the bundled static catalog into Neon. */
+export async function importStaticCatalog(env: Env): Promise<{ inserted: number; total: number }> {
+  const sql = getSql(env);
+  let inserted = 0;
+  for (const item of staticCatalogItems) {
+    const rows = await sql`
+      INSERT INTO catalog_items (minecraft_id, name, category, image_url)
+      VALUES (${item.minecraft_id}, ${item.name}, ${item.category}, ${item.image_url})
+      ON CONFLICT (minecraft_id) DO NOTHING
+      RETURNING id
+    `;
+    if (rows.length > 0) inserted++;
+  }
+  invalidateCatalogCache();
+  return { inserted, total: staticCatalogItems.length };
+}
+
+export async function catalogItemExistsDb(env: Env, minecraftId: string): Promise<boolean> {
+  const map = await getCatalogMap(env);
+  return map.has(minecraftId) && (map.get(minecraftId) as CatalogItemRow).active;
+}
+
+export async function searchCatalogDb(env: Env, query: string, limit = 30): Promise<CatalogItemRow[]> {
+  const sql = getSql(env);
+  const q = `%${query.trim().toLowerCase()}%`;
+  const rows = await sql`
+    SELECT * FROM catalog_items
+    WHERE active = TRUE AND (LOWER(name) LIKE ${q} OR LOWER(minecraft_id) LIKE ${q})
+    ORDER BY name ASC
+    LIMIT ${limit}
+  `;
+  return rows as unknown as CatalogItemRow[];
+}
+
+// In-memory cache of the whole catalog, keyed by minecraft_id. The table
+// only changes when an Admin edits it, so re-fetching on every single
+// product lookup would be wasteful; this is invalidated right after any
+// Admin catalog mutation and otherwise lives for the Worker instance's
+// lifetime (a fresh instance just refetches once, lazily).
+let catalogCache: Map<string, CatalogItemRow> | null = null;
+
+export async function getCatalogMap(env: Env): Promise<Map<string, CatalogItemRow>> {
+  if (catalogCache) return catalogCache;
+  const sql = getSql(env);
+  const rows = (await sql`SELECT * FROM catalog_items`) as unknown as CatalogItemRow[];
+  catalogCache = new Map(rows.map((r) => [r.minecraft_id, r]));
+  return catalogCache;
+}
+
+function invalidateCatalogCache(): void {
+  catalogCache = null;
+}
+
+/** Admin listing — includes inactive items too. */
+export async function getAllCatalogItemsAdmin(env: Env): Promise<CatalogItemRow[]> {
+  const sql = getSql(env);
+  const rows = await sql`SELECT * FROM catalog_items ORDER BY name ASC`;
+  return rows as unknown as CatalogItemRow[];
+}
+
+export async function createCatalogItem(
+  env: Env,
+  input: { minecraftId: string; name: string; category: string; imageUrl: string }
+): Promise<CatalogItemRow> {
+  const sql = getSql(env);
+  const rows = await sql`
+    INSERT INTO catalog_items (minecraft_id, name, category, image_url)
+    VALUES (${input.minecraftId}, ${input.name}, ${input.category}, ${input.imageUrl})
+    RETURNING *
+  `;
+  invalidateCatalogCache();
+  return rows[0] as unknown as CatalogItemRow;
+}
+
+export async function updateCatalogItem(
+  env: Env,
+  id: number,
+  input: { name: string; category: string; imageUrl: string }
+): Promise<CatalogItemRow> {
+  const sql = getSql(env);
+  const rows = await sql`
+    UPDATE catalog_items SET name = ${input.name}, category = ${input.category}, image_url = ${input.imageUrl}
+    WHERE id = ${id}
+    RETURNING *
+  `;
+  invalidateCatalogCache();
+  return rows[0] as unknown as CatalogItemRow;
+}
+
+export async function setCatalogItemActive(env: Env, id: number, active: boolean): Promise<void> {
+  const sql = getSql(env);
+  await sql`UPDATE catalog_items SET active = ${active} WHERE id = ${id}`;
+  invalidateCatalogCache();
+}
+
+// ---------------------------------------------------------------------------
+// shop_items — products configured within a shop. Links to catalog_items
+// via minecraft_id (not a hard FK, to avoid migration risk — validated at
+// the application layer against catalog_items instead).
 // ---------------------------------------------------------------------------
 
 export interface ShopItem {
@@ -147,31 +434,6 @@ export interface ShopItemInput {
   compactedSellPrice: number | null;
   compactedBuyAmount: number | null;
   compactedBuyPrice: number | null;
-}
-
-/** Creates shop_items if it doesn't exist yet. No-op (safe) if it already does. */
-export async function ensureShopItemsTable(env: Env): Promise<void> {
-  const sql = getSql(env);
-  await sql`
-    CREATE TABLE IF NOT EXISTS shop_items (
-      id BIGSERIAL PRIMARY KEY,
-      shop_id BIGINT NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
-      minecraft_id TEXT NOT NULL,
-      quantity INTEGER,
-      compacted_quantity INTEGER,
-      essence_quantity NUMERIC(12, 2),
-      sell_amount INTEGER,
-      sell_price NUMERIC(12, 2),
-      buy_amount INTEGER,
-      buy_price NUMERIC(12, 2),
-      compacted_sell_amount INTEGER,
-      compacted_sell_price NUMERIC(12, 2),
-      compacted_buy_amount INTEGER,
-      compacted_buy_price NUMERIC(12, 2),
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      UNIQUE (shop_id, minecraft_id)
-    )
-  `;
 }
 
 export async function getShopItems(env: Env, shopId: number): Promise<ShopItem[]> {
@@ -261,4 +523,30 @@ export async function getShopItemWithShopById(env: Env, id: number): Promise<Sho
     LIMIT 1
   `;
   return (rows[0] as unknown as ShopItemWithShop) ?? null;
+}
+
+// ---------------------------------------------------------------------------
+// Admin — merchants
+// ---------------------------------------------------------------------------
+
+export interface MerchantWithShopCount extends Merchant {
+  shop_count: number;
+}
+
+export async function getAllMerchantsAdmin(env: Env): Promise<MerchantWithShopCount[]> {
+  const sql = getSql(env);
+  const rows = await sql`
+    SELECT m.*, COUNT(s.id)::int AS shop_count
+    FROM merchants m
+    LEFT JOIN shops s ON s.merchant_id = m.id
+    GROUP BY m.id
+    ORDER BY m.created_at DESC
+  `;
+  return rows as unknown as MerchantWithShopCount[];
+}
+
+export async function setMerchantApproved(env: Env, id: number, approved: boolean): Promise<Merchant> {
+  const sql = getSql(env);
+  const rows = await sql`UPDATE merchants SET approved = ${approved} WHERE id = ${id} RETURNING *`;
+  return rows[0] as unknown as Merchant;
 }

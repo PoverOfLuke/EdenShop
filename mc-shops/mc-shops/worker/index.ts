@@ -18,7 +18,7 @@ import {
   getShopBySlug,
   createShop,
   updateShop,
-  ensureShopItemsTable,
+  ensureSchema,
   getShopItems,
   getShopItemById,
   createShopItem,
@@ -26,12 +26,33 @@ import {
   deleteShopItem,
   getAllShopItemsWithShop,
   getShopItemWithShopById,
+  getAllCountries,
+  createCountry,
+  updateCountry,
+  deleteCountry,
+  getAllCities,
+  getCitiesByCountry,
+  getCityById,
+  createCity,
+  updateCity,
+  deleteCity,
+  getCatalogMap,
+  catalogItemExistsDb,
+  searchCatalogDb,
+  getAllCatalogItemsAdmin,
+  createCatalogItem,
+  updateCatalogItem,
+  setCatalogItemActive,
+  importStaticCatalog,
+  getAllMerchantsAdmin,
+  setMerchantApproved,
   type Merchant,
   type Shop,
   type ShopInput,
   type ShopItemInput,
+  type ShopItem,
+  type CatalogItemRow,
 } from './db';
-import { getCatalogItem, catalogItemExists, searchCatalog } from './catalog';
 
 function json(data: unknown, status = 200, extraHeaders?: Headers): Response {
   const headers = extraHeaders ?? new Headers();
@@ -44,6 +65,21 @@ function redirect(location: string, extraHeaders?: Headers): Response {
   headers.set('Location', location);
   return new Response(null, { status: 302, headers });
 }
+
+async function readJson(request: Request): Promise<{ body: unknown } | { response: Response }> {
+  try {
+    return { body: await request.json() };
+  } catch {
+    return { response: json({ error: 'Invalid JSON body.' }, 400) };
+  }
+}
+
+function isDuplicateKeyError(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err);
+  return message.includes('duplicate key');
+}
+
+const SLUG_RE = /^[a-z0-9-]+$/;
 
 // ---------------------------------------------------------------------------
 // /api/auth/*
@@ -96,16 +132,16 @@ function handleLogout(): Response {
   return redirect('/', headers);
 }
 
-/**
- * Centralized auth check, reused by every /api/merchant/* and /api/auth/me
- * handler. Distinguishes *why* a request is unauthenticated so the client
- * (and logs) can tell "no/invalid cookie" apart from "cookie valid but
- * merchant vanished" apart from "logged in but not approved yet".
- */
+/** Centralized auth check, reused by every /api/merchant/* and /api/auth/me handler. */
 async function requireApprovedMerchant(
   request: Request,
   env: Env
 ): Promise<{ merchant: Merchant } | { response: Response }> {
+  // Runs before the first SELECT: on a cold instance /api/auth/me would
+  // otherwise read merchants without the is_admin column and every
+  // /api/admin/* route would 403 until some other endpoint ran the DDL.
+  await ensureSchema(env);
+
   const merchantId = await getMerchantIdFromSession(request, env);
   if (merchantId === null) {
     return { response: json({ error: 'not_authenticated', reason: 'invalid_session' }, 401) };
@@ -125,11 +161,17 @@ async function requireApprovedMerchant(
   return { merchant };
 }
 
-/**
- * Ownership check reused by every endpoint that operates on a specific shop
- * (shop edits, and every shop_items endpoint). Never trusts a shop_id from
- * the client beyond "does it belong to this session's merchant".
- */
+/** Same session/approval check, plus is_admin. Reused by every /api/admin/* handler. */
+async function requireAdmin(request: Request, env: Env): Promise<{ merchant: Merchant } | { response: Response }> {
+  const result = await requireApprovedMerchant(request, env);
+  if ('response' in result) return result;
+  if (!result.merchant.is_admin) {
+    return { response: json({ error: 'forbidden', reason: 'not_admin' }, 403) };
+  }
+  return result;
+}
+
+/** Ownership check reused by every endpoint that operates on a specific shop. */
 async function requireOwnedShop(
   env: Env,
   merchant: Merchant,
@@ -150,23 +192,22 @@ async function handleMe(request: Request, env: Env): Promise<Response> {
     display_name: merchant.display_name ?? merchant.discord_username ?? 'Merchant',
     discord_username: merchant.discord_username,
     approved: merchant.approved,
+    is_admin: merchant.is_admin,
   });
 }
 
 // ---------------------------------------------------------------------------
-// /api/merchant/shops
+// /api/merchant/shops — now with optional country/city
 // ---------------------------------------------------------------------------
 
-function parseShopInput(body: unknown): { input: ShopInput } | { error: string } {
+async function parseShopInput(env: Env, body: unknown): Promise<{ input: ShopInput } | { error: string }> {
   const b = (body ?? {}) as Record<string, unknown>;
 
   const name = typeof b.name === 'string' ? b.name.trim() : '';
   if (!name) return { error: 'Name is required.' };
 
   const slug = typeof b.slug === 'string' ? b.slug.trim().toLowerCase() : '';
-  if (!/^[a-z0-9-]+$/.test(slug)) {
-    return { error: 'Slug must contain only lowercase letters, numbers and hyphens.' };
-  }
+  if (!SLUG_RE.test(slug)) return { error: 'Slug must contain only lowercase letters, numbers and hyphens.' };
 
   const parseCoord = (value: unknown): number | null | 'invalid' => {
     if (value === null || value === undefined || value === '') return null;
@@ -182,12 +223,18 @@ function parseShopInput(body: unknown): { input: ShopInput } | { error: string }
   const description = typeof b.description === 'string' ? b.description.trim() || null : null;
   const directions = typeof b.directions === 'string' ? b.directions.trim() || null : null;
 
-  return { input: { name, slug, x, z, description, directions } };
-}
+  const countryId = parseCoord(b.countryId);
+  if (countryId === 'invalid') return { error: 'Invalid country.' };
+  let cityId = parseCoord(b.cityId);
+  if (cityId === 'invalid') return { error: 'Invalid city.' };
 
-function isDuplicateKeyError(err: unknown): boolean {
-  const message = err instanceof Error ? err.message : String(err);
-  return message.includes('duplicate key');
+  if (cityId !== null) {
+    if (countryId === null) return { error: 'Select a country before a city.' };
+    const city = await getCityById(env, cityId);
+    if (!city || city.country_id !== countryId) return { error: 'That city does not belong to the selected country.' };
+  }
+
+  return { input: { name, slug, x, z, description, directions, countryId, cityId } };
 }
 
 async function handleShopsCollection(request: Request, env: Env): Promise<Response> {
@@ -201,23 +248,17 @@ async function handleShopsCollection(request: Request, env: Env): Promise<Respon
   }
 
   if (request.method === 'POST') {
-    let body: unknown;
-    try {
-      body = await request.json();
-    } catch {
-      return json({ error: 'Invalid JSON body.' }, 400);
-    }
+    const read = await readJson(request);
+    if ('response' in read) return read.response;
 
-    const parsed = parseShopInput(body);
+    const parsed = await parseShopInput(env, read.body);
     if ('error' in parsed) return json({ error: parsed.error }, 400);
 
     try {
       const shop = await createShop(env, merchant.id, parsed.input);
       return json({ shop }, 201);
     } catch (err) {
-      if (isDuplicateKeyError(err)) {
-        return json({ error: 'A shop with this slug already exists.' }, 409);
-      }
+      if (isDuplicateKeyError(err)) return json({ error: 'A shop with this slug already exists.' }, 409);
       return json({ error: 'Could not create the shop.' }, 500);
     }
   }
@@ -233,88 +274,56 @@ async function handleShopRecordUpdate(request: Request, env: Env, shopId: number
   const owned = await requireOwnedShop(env, merchant, shopId);
   if ('response' in owned) return owned.response;
 
-  if (request.method !== 'PUT') {
-    return json({ error: 'Method not allowed.' }, 405);
-  }
+  if (request.method !== 'PUT') return json({ error: 'Method not allowed.' }, 405);
 
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return json({ error: 'Invalid JSON body.' }, 400);
-  }
+  const read = await readJson(request);
+  if ('response' in read) return read.response;
 
-  const parsed = parseShopInput(body);
+  const parsed = await parseShopInput(env, read.body);
   if ('error' in parsed) return json({ error: parsed.error }, 400);
 
   try {
     const shop = await updateShop(env, shopId, parsed.input);
     return json({ shop });
   } catch (err) {
-    if (isDuplicateKeyError(err)) {
-      return json({ error: 'A shop with this slug already exists.' }, 409);
-    }
+    if (isDuplicateKeyError(err)) return json({ error: 'A shop with this slug already exists.' }, 409);
     return json({ error: 'Could not update the shop.' }, 500);
   }
 }
 
 // ---------------------------------------------------------------------------
-// /api/catalog/search — public, read-only lookup into the static catalog.
+// /api/catalog/search — public, read-only lookup, DB-backed.
 // ---------------------------------------------------------------------------
 
-function handleCatalogSearch(request: Request): Response {
+async function handleCatalogSearch(request: Request, env: Env): Promise<Response> {
+  await ensureSchema(env);
   const url = new URL(request.url);
   const q = url.searchParams.get('q') ?? '';
-  return json({ items: searchCatalog(q) });
-}
-
-// ---------------------------------------------------------------------------
-// Public, read-only endpoints backing Home / Shops / Products.
-// No auth: this is the same data anyone browsing the site can already see.
-// ---------------------------------------------------------------------------
-
-async function handlePublicShops(env: Env): Promise<Response> {
-  const shops = await getAllShops(env);
-  return json({ shops });
-}
-
-async function handlePublicShopDetail(env: Env, slug: string): Promise<Response> {
-  const shop = await getShopBySlug(env, slug);
-  if (!shop) return json({ error: 'shop_not_found' }, 404);
-  return json({ shop });
-}
-
-async function handlePublicShopItems(env: Env, slug: string): Promise<Response> {
-  const shop = await getShopBySlug(env, slug);
-  if (!shop) return json({ error: 'shop_not_found' }, 404);
-  await ensureShopItemsTable(env);
-  const items = await getShopItems(env, shop.id);
-  return json({ shop, items: items.map(enrichShopItem) });
-}
-
-async function handlePublicProducts(env: Env): Promise<Response> {
-  await ensureShopItemsTable(env);
-  const rows = await getAllShopItemsWithShop(env);
-  const items = rows.map((row) => {
-    const catalog = getCatalogItem(row.minecraft_id);
-    return {
-      ...row,
-      catalog: catalog ? { name: catalog.name, category: catalog.category, image_url: catalog.image_url } : null,
-    };
-  });
+  const items = await searchCatalogDb(env, q);
   return json({ items });
 }
 
-async function handlePublicProductDetail(env: Env, id: number): Promise<Response> {
-  const row = await getShopItemWithShopById(env, id);
-  if (!row) return json({ error: 'product_not_found' }, 404);
-  const catalog = getCatalogItem(row.minecraft_id);
-  return json({
-    item: {
-      ...row,
-      catalog: catalog ? { name: catalog.name, category: catalog.category, image_url: catalog.image_url } : null,
-    },
-  });
+// ---------------------------------------------------------------------------
+// /api/countries, /api/cities — public, read-only (used by shop create/edit
+// forms and, later, Shops page filters).
+// ---------------------------------------------------------------------------
+
+async function handlePublicCountries(env: Env): Promise<Response> {
+  await ensureSchema(env);
+  const countries = await getAllCountries(env);
+  return json({ countries });
+}
+
+async function handlePublicCities(request: Request, env: Env): Promise<Response> {
+  await ensureSchema(env);
+  const url = new URL(request.url);
+  const countryIdParam = url.searchParams.get('country_id');
+  if (countryIdParam) {
+    const cities = await getCitiesByCountry(env, Number(countryIdParam));
+    return json({ cities });
+  }
+  const cities = await getAllCities(env);
+  return json({ cities });
 }
 
 // ---------------------------------------------------------------------------
@@ -328,25 +337,17 @@ function num(value: unknown): number | null | 'invalid' {
   return n;
 }
 
-function parseShopItemInput(body: unknown): { input: ShopItemInput } | { error: string } {
+async function parseShopItemInput(env: Env, body: unknown): Promise<{ input: ShopItemInput } | { error: string }> {
   const b = (body ?? {}) as Record<string, unknown>;
 
   const minecraftId = typeof b.minecraftId === 'string' ? b.minecraftId.trim() : '';
   if (!minecraftId) return { error: 'Choose an item from the catalog.' };
-  if (!catalogItemExists(minecraftId)) return { error: 'That item is not in the Minecraft catalog.' };
+  if (!(await catalogItemExistsDb(env, minecraftId))) return { error: 'That item is not in the Minecraft catalog.' };
 
   const fields = [
-    'quantity',
-    'compactedQuantity',
-    'essenceQuantity',
-    'sellAmount',
-    'sellPrice',
-    'buyAmount',
-    'buyPrice',
-    'compactedSellAmount',
-    'compactedSellPrice',
-    'compactedBuyAmount',
-    'compactedBuyPrice',
+    'quantity', 'compactedQuantity', 'essenceQuantity',
+    'sellAmount', 'sellPrice', 'buyAmount', 'buyPrice',
+    'compactedSellAmount', 'compactedSellPrice', 'compactedBuyAmount', 'compactedBuyPrice',
   ] as const;
 
   const parsed: Record<string, number | null> = {};
@@ -356,8 +357,6 @@ function parseShopItemInput(body: unknown): { input: ShopItemInput } | { error: 
     parsed[field] = value;
   }
 
-  // A sell/buy pair only counts as "configured" when BOTH amount and price
-  // are set; a lone amount or a lone price is treated as not configured.
   const sellConfigured = parsed.sellAmount !== null && parsed.sellPrice !== null;
   const buyConfigured = parsed.buyAmount !== null && parsed.buyPrice !== null;
   const compactedSellConfigured = parsed.compactedSellAmount !== null && parsed.compactedSellPrice !== null;
@@ -367,7 +366,6 @@ function parseShopItemInput(body: unknown): { input: ShopItemInput } | { error: 
     return { error: 'Configure at least one of: sell, buy, compacted sell, compacted buy.' };
   }
 
-  // Drop half-filled pairs instead of silently keeping a stray amount/price.
   if (!sellConfigured) { parsed.sellAmount = null; parsed.sellPrice = null; }
   if (!buyConfigured) { parsed.buyAmount = null; parsed.buyPrice = null; }
   if (!compactedSellConfigured) { parsed.compactedSellAmount = null; parsed.compactedSellPrice = null; }
@@ -391,13 +389,11 @@ function parseShopItemInput(body: unknown): { input: ShopItemInput } | { error: 
   };
 }
 
-function enrichShopItem(item: Awaited<ReturnType<typeof getShopItems>>[number]) {
-  const catalog = getCatalogItem(item.minecraft_id);
+function enrichShopItem(item: ShopItem, catalogMap: Map<string, CatalogItemRow>) {
+  const catalog = catalogMap.get(item.minecraft_id);
   return {
     ...item,
-    catalog: catalog
-      ? { name: catalog.name, category: catalog.category, image_url: catalog.image_url }
-      : null,
+    catalog: catalog ? { name: catalog.name, category: catalog.category, image_url: catalog.image_url } : null,
   };
 }
 
@@ -409,31 +405,27 @@ async function handleShopItemsCollection(request: Request, env: Env, shopId: num
   const owned = await requireOwnedShop(env, merchant, shopId);
   if ('response' in owned) return owned.response;
 
-  await ensureShopItemsTable(env);
+  await ensureSchema(env);
 
   if (request.method === 'GET') {
     const items = await getShopItems(env, shopId);
-    return json({ shop: owned.shop, items: items.map(enrichShopItem) });
+    const catalogMap = await getCatalogMap(env);
+    return json({ shop: owned.shop, items: items.map((i) => enrichShopItem(i, catalogMap)) });
   }
 
   if (request.method === 'POST') {
-    let body: unknown;
-    try {
-      body = await request.json();
-    } catch {
-      return json({ error: 'Invalid JSON body.' }, 400);
-    }
+    const read = await readJson(request);
+    if ('response' in read) return read.response;
 
-    const parsed = parseShopItemInput(body);
+    const parsed = await parseShopItemInput(env, read.body);
     if ('error' in parsed) return json({ error: parsed.error }, 400);
 
     try {
       const item = await createShopItem(env, shopId, parsed.input);
-      return json({ shop: owned.shop, item: enrichShopItem(item) }, 201);
+      const catalogMap = await getCatalogMap(env);
+      return json({ shop: owned.shop, item: enrichShopItem(item, catalogMap) }, 201);
     } catch (err) {
-      if (isDuplicateKeyError(err)) {
-        return json({ error: 'This item is already configured for this shop.' }, 409);
-      }
+      if (isDuplicateKeyError(err)) return json({ error: 'This item is already configured for this shop.' }, 409);
       return json({ error: 'Could not add the item.' }, 500);
     }
   }
@@ -449,37 +441,310 @@ async function handleShopItemDetail(request: Request, env: Env, shopId: number, 
   const owned = await requireOwnedShop(env, merchant, shopId);
   if ('response' in owned) return owned.response;
 
-  await ensureShopItemsTable(env);
+  await ensureSchema(env);
 
   const existing = await getShopItemById(env, itemId);
-  if (!existing || existing.shop_id !== shopId) {
-    return json({ error: 'Item not found.' }, 404);
-  }
+  if (!existing || existing.shop_id !== shopId) return json({ error: 'Item not found.' }, 404);
 
   if (request.method === 'PUT') {
-    let body: unknown;
-    try {
-      body = await request.json();
-    } catch {
-      return json({ error: 'Invalid JSON body.' }, 400);
-    }
+    const read = await readJson(request);
+    if ('response' in read) return read.response;
 
-    const parsed = parseShopItemInput(body);
+    const parsed = await parseShopItemInput(env, read.body);
     if ('error' in parsed) return json({ error: parsed.error }, 400);
 
     try {
       const item = await updateShopItem(env, itemId, parsed.input);
-      return json({ item: enrichShopItem(item) });
+      const catalogMap = await getCatalogMap(env);
+      return json({ item: enrichShopItem(item, catalogMap) });
     } catch (err) {
-      if (isDuplicateKeyError(err)) {
-        return json({ error: 'This item is already configured for this shop.' }, 409);
-      }
+      if (isDuplicateKeyError(err)) return json({ error: 'This item is already configured for this shop.' }, 409);
       return json({ error: 'Could not update the item.' }, 500);
     }
   }
 
   if (request.method === 'DELETE') {
     await deleteShopItem(env, itemId);
+    return json({ ok: true });
+  }
+
+  return json({ error: 'Method not allowed.' }, 405);
+}
+
+// ---------------------------------------------------------------------------
+// Public, read-only endpoints backing Home / Shops / Products.
+// ---------------------------------------------------------------------------
+
+async function handlePublicShops(env: Env): Promise<Response> {
+  await ensureSchema(env);
+  const shops = await getAllShops(env);
+  return json({ shops });
+}
+
+async function handlePublicShopDetail(env: Env, slug: string): Promise<Response> {
+  await ensureSchema(env);
+  const shop = await getShopBySlug(env, slug);
+  if (!shop) return json({ error: 'shop_not_found' }, 404);
+  return json({ shop });
+}
+
+async function handlePublicShopItems(env: Env, slug: string): Promise<Response> {
+  await ensureSchema(env);
+  const shop = await getShopBySlug(env, slug);
+  if (!shop) return json({ error: 'shop_not_found' }, 404);
+  const items = await getShopItems(env, shop.id);
+  const catalogMap = await getCatalogMap(env);
+  return json({ shop, items: items.map((i) => enrichShopItem(i, catalogMap)) });
+}
+
+async function handlePublicProducts(env: Env): Promise<Response> {
+  await ensureSchema(env);
+  const rows = await getAllShopItemsWithShop(env);
+  const catalogMap = await getCatalogMap(env);
+  const items = rows.map((row) => {
+    const catalog = catalogMap.get(row.minecraft_id);
+    return {
+      ...row,
+      catalog: catalog ? { name: catalog.name, category: catalog.category, image_url: catalog.image_url } : null,
+    };
+  });
+  return json({ items });
+}
+
+async function handlePublicProductDetail(env: Env, id: number): Promise<Response> {
+  await ensureSchema(env);
+  const row = await getShopItemWithShopById(env, id);
+  if (!row) return json({ error: 'product_not_found' }, 404);
+  const catalogMap = await getCatalogMap(env);
+  const catalog = catalogMap.get(row.minecraft_id);
+  return json({
+    item: { ...row, catalog: catalog ? { name: catalog.name, category: catalog.category, image_url: catalog.image_url } : null },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// /api/admin/* — merchants, catalog, countries, cities
+// ---------------------------------------------------------------------------
+
+async function handleAdminMerchants(request: Request, env: Env): Promise<Response> {
+  const result = await requireAdmin(request, env);
+  if ('response' in result) return result.response;
+
+  if (request.method === 'GET') {
+    const merchants = await getAllMerchantsAdmin(env);
+    return json({ merchants });
+  }
+  return json({ error: 'Method not allowed.' }, 405);
+}
+
+async function handleAdminMerchantApproval(request: Request, env: Env, merchantId: number, approve: boolean): Promise<Response> {
+  const result = await requireAdmin(request, env);
+  if ('response' in result) return result.response;
+
+  if (request.method !== 'POST') return json({ error: 'Method not allowed.' }, 405);
+  const merchant = await setMerchantApproved(env, merchantId, approve);
+  return json({ merchant });
+}
+
+async function handleAdminCatalogImport(request: Request, env: Env): Promise<Response> {
+  const result = await requireAdmin(request, env);
+  if ('response' in result) return result.response;
+  if (request.method !== 'POST') return json({ error: 'Method not allowed.' }, 405);
+
+  await ensureSchema(env);
+  const summary = await importStaticCatalog(env);
+  return json(summary);
+}
+
+function parseCatalogInput(body: unknown): { input: { minecraftId: string; name: string; category: string; imageUrl: string } } | { error: string } {
+  const b = (body ?? {}) as Record<string, unknown>;
+  const minecraftId = typeof b.minecraftId === 'string' ? b.minecraftId.trim() : '';
+  const name = typeof b.name === 'string' ? b.name.trim() : '';
+  const category = typeof b.category === 'string' ? b.category.trim() : '';
+  const imageUrl = typeof b.imageUrl === 'string' ? b.imageUrl.trim() : '';
+  if (!minecraftId) return { error: 'minecraft_id is required.' };
+  if (!name) return { error: 'Name is required.' };
+  if (!category) return { error: 'Category is required.' };
+  if (!imageUrl) return { error: 'Image URL is required.' };
+  return { input: { minecraftId, name, category, imageUrl } };
+}
+
+async function handleAdminCatalogCollection(request: Request, env: Env): Promise<Response> {
+  const result = await requireAdmin(request, env);
+  if ('response' in result) return result.response;
+
+  await ensureSchema(env);
+
+  if (request.method === 'GET') {
+    const items = await getAllCatalogItemsAdmin(env);
+    return json({ items });
+  }
+
+  if (request.method === 'POST') {
+    const read = await readJson(request);
+    if ('response' in read) return read.response;
+    const parsed = parseCatalogInput(read.body);
+    if ('error' in parsed) return json({ error: parsed.error }, 400);
+    try {
+      const item = await createCatalogItem(env, parsed.input);
+      return json({ item }, 201);
+    } catch (err) {
+      if (isDuplicateKeyError(err)) return json({ error: 'That minecraft_id already exists in the catalog.' }, 409);
+      return json({ error: 'Could not create the item.' }, 500);
+    }
+  }
+
+  return json({ error: 'Method not allowed.' }, 405);
+}
+
+async function handleAdminCatalogItem(request: Request, env: Env, id: number): Promise<Response> {
+  const result = await requireAdmin(request, env);
+  if ('response' in result) return result.response;
+
+  if (request.method === 'PUT') {
+    const read = await readJson(request);
+    if ('response' in read) return read.response;
+    const b = (read.body ?? {}) as Record<string, unknown>;
+    const name = typeof b.name === 'string' ? b.name.trim() : '';
+    const category = typeof b.category === 'string' ? b.category.trim() : '';
+    const imageUrl = typeof b.imageUrl === 'string' ? b.imageUrl.trim() : '';
+    if (!name || !category || !imageUrl) return json({ error: 'Name, category and image URL are required.' }, 400);
+    const item = await updateCatalogItem(env, id, { name, category, imageUrl });
+    return json({ item });
+  }
+
+  if (request.method === 'DELETE') {
+    // Soft delete only: shop_items may already reference this minecraft_id.
+    await setCatalogItemActive(env, id, false);
+    return json({ ok: true });
+  }
+
+  return json({ error: 'Method not allowed.' }, 405);
+}
+
+async function handleAdminCatalogActivate(request: Request, env: Env, id: number): Promise<Response> {
+  const result = await requireAdmin(request, env);
+  if ('response' in result) return result.response;
+  if (request.method !== 'POST') return json({ error: 'Method not allowed.' }, 405);
+  await setCatalogItemActive(env, id, true);
+  return json({ ok: true });
+}
+
+function parseNamedSlugInput(body: unknown): { name: string; slug: string } | { error: string } {
+  const b = (body ?? {}) as Record<string, unknown>;
+  const name = typeof b.name === 'string' ? b.name.trim() : '';
+  const slug = typeof b.slug === 'string' ? b.slug.trim().toLowerCase() : '';
+  if (!name) return { error: 'Name is required.' };
+  if (!SLUG_RE.test(slug)) return { error: 'Slug must contain only lowercase letters, numbers and hyphens.' };
+  return { name, slug };
+}
+
+async function handleAdminCountriesCollection(request: Request, env: Env): Promise<Response> {
+  const result = await requireAdmin(request, env);
+  if ('response' in result) return result.response;
+  await ensureSchema(env);
+
+  if (request.method === 'GET') {
+    const countries = await getAllCountries(env);
+    return json({ countries });
+  }
+
+  if (request.method === 'POST') {
+    const read = await readJson(request);
+    if ('response' in read) return read.response;
+    const parsed = parseNamedSlugInput(read.body);
+    if ('error' in parsed) return json({ error: parsed.error }, 400);
+    try {
+      const country = await createCountry(env, parsed.name, parsed.slug);
+      return json({ country }, 201);
+    } catch (err) {
+      if (isDuplicateKeyError(err)) return json({ error: 'A country with this slug already exists.' }, 409);
+      return json({ error: 'Could not create the country.' }, 500);
+    }
+  }
+
+  return json({ error: 'Method not allowed.' }, 405);
+}
+
+async function handleAdminCountryItem(request: Request, env: Env, id: number): Promise<Response> {
+  const result = await requireAdmin(request, env);
+  if ('response' in result) return result.response;
+
+  if (request.method === 'PUT') {
+    const read = await readJson(request);
+    if ('response' in read) return read.response;
+    const parsed = parseNamedSlugInput(read.body);
+    if ('error' in parsed) return json({ error: parsed.error }, 400);
+    try {
+      const country = await updateCountry(env, id, parsed.name, parsed.slug);
+      return json({ country });
+    } catch (err) {
+      if (isDuplicateKeyError(err)) return json({ error: 'A country with this slug already exists.' }, 409);
+      return json({ error: 'Could not update the country.' }, 500);
+    }
+  }
+
+  if (request.method === 'DELETE') {
+    await deleteCountry(env, id);
+    return json({ ok: true });
+  }
+
+  return json({ error: 'Method not allowed.' }, 405);
+}
+
+async function handleAdminCitiesCollection(request: Request, env: Env): Promise<Response> {
+  const result = await requireAdmin(request, env);
+  if ('response' in result) return result.response;
+  await ensureSchema(env);
+
+  if (request.method === 'GET') {
+    const cities = await getAllCities(env);
+    return json({ cities });
+  }
+
+  if (request.method === 'POST') {
+    const read = await readJson(request);
+    if ('response' in read) return read.response;
+    const b = (read.body ?? {}) as Record<string, unknown>;
+    const countryId = Number(b.countryId);
+    if (!Number.isFinite(countryId)) return json({ error: 'A country is required.' }, 400);
+    const parsed = parseNamedSlugInput(read.body);
+    if ('error' in parsed) return json({ error: parsed.error }, 400);
+    try {
+      const city = await createCity(env, countryId, parsed.name, parsed.slug);
+      return json({ city }, 201);
+    } catch (err) {
+      if (isDuplicateKeyError(err)) return json({ error: 'A city with this slug already exists in that country.' }, 409);
+      return json({ error: 'Could not create the city.' }, 500);
+    }
+  }
+
+  return json({ error: 'Method not allowed.' }, 405);
+}
+
+async function handleAdminCityItem(request: Request, env: Env, id: number): Promise<Response> {
+  const result = await requireAdmin(request, env);
+  if ('response' in result) return result.response;
+
+  if (request.method === 'PUT') {
+    const read = await readJson(request);
+    if ('response' in read) return read.response;
+    const b = (read.body ?? {}) as Record<string, unknown>;
+    const countryId = Number(b.countryId);
+    if (!Number.isFinite(countryId)) return json({ error: 'A country is required.' }, 400);
+    const parsed = parseNamedSlugInput(read.body);
+    if ('error' in parsed) return json({ error: parsed.error }, 400);
+    try {
+      const city = await updateCity(env, id, countryId, parsed.name, parsed.slug);
+      return json({ city });
+    } catch (err) {
+      if (isDuplicateKeyError(err)) return json({ error: 'A city with this slug already exists in that country.' }, 409);
+      return json({ error: 'Could not update the city.' }, 500);
+    }
+  }
+
+  if (request.method === 'DELETE') {
+    await deleteCity(env, id);
     return json({ ok: true });
   }
 
@@ -495,7 +760,7 @@ export default {
     const url = new URL(request.url);
     const { pathname } = url;
 
-    // TEMPORARY — remove once the env var issue is confirmed fixed.
+    // TEMPORARY — safe to remove once you've confirmed env vars are set.
     if (pathname === '/api/debug/env') {
       return json({
         DISCORD_CLIENT_ID: Boolean(env.DISCORD_CLIENT_ID),
@@ -510,7 +775,10 @@ export default {
     if (pathname === '/api/auth/discord/callback') return handleDiscordCallback(request, env);
     if (pathname === '/api/auth/logout') return handleLogout();
     if (pathname === '/api/auth/me') return handleMe(request, env);
-    if (pathname === '/api/catalog/search') return handleCatalogSearch(request);
+
+    if (pathname === '/api/catalog/search') return handleCatalogSearch(request, env);
+    if (pathname === '/api/countries') return handlePublicCountries(env);
+    if (pathname === '/api/cities') return handlePublicCities(request, env);
 
     if (pathname === '/api/shops') return handlePublicShops(env);
     if (pathname === '/api/products') return handlePublicProducts(env);
@@ -536,6 +804,32 @@ export default {
     if (itemDetailMatch) {
       return handleShopItemDetail(request, env, Number(itemDetailMatch[1]), Number(itemDetailMatch[2]));
     }
+
+    // -- Admin --
+    if (pathname === '/api/admin/merchants') return handleAdminMerchants(request, env);
+
+    const merchantApproveMatch = pathname.match(/^\/api\/admin\/merchants\/(\d+)\/approve$/);
+    if (merchantApproveMatch) return handleAdminMerchantApproval(request, env, Number(merchantApproveMatch[1]), true);
+
+    const merchantRevokeMatch = pathname.match(/^\/api\/admin\/merchants\/(\d+)\/revoke$/);
+    if (merchantRevokeMatch) return handleAdminMerchantApproval(request, env, Number(merchantRevokeMatch[1]), false);
+
+    if (pathname === '/api/admin/catalog/import') return handleAdminCatalogImport(request, env);
+    if (pathname === '/api/admin/catalog') return handleAdminCatalogCollection(request, env);
+
+    const catalogActivateMatch = pathname.match(/^\/api\/admin\/catalog\/(\d+)\/activate$/);
+    if (catalogActivateMatch) return handleAdminCatalogActivate(request, env, Number(catalogActivateMatch[1]));
+
+    const catalogItemMatch = pathname.match(/^\/api\/admin\/catalog\/(\d+)$/);
+    if (catalogItemMatch) return handleAdminCatalogItem(request, env, Number(catalogItemMatch[1]));
+
+    if (pathname === '/api/admin/countries') return handleAdminCountriesCollection(request, env);
+    const countryItemMatch = pathname.match(/^\/api\/admin\/countries\/(\d+)$/);
+    if (countryItemMatch) return handleAdminCountryItem(request, env, Number(countryItemMatch[1]));
+
+    if (pathname === '/api/admin/cities') return handleAdminCitiesCollection(request, env);
+    const cityItemMatch = pathname.match(/^\/api\/admin\/cities\/(\d+)$/);
+    if (cityItemMatch) return handleAdminCityItem(request, env, Number(cityItemMatch[1]));
 
     // Everything else: serve the static Astro site as before.
     return env.ASSETS.fetch(request);

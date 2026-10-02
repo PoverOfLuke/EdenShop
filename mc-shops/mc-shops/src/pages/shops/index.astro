@@ -20,7 +20,10 @@ import Topbar from '@/components/Topbar.astro';
 </BaseLayout>
 
 <script>
-  interface Shop { id: number; name: string; slug: string; x: number | null; z: number | null; description: string | null; }
+  interface Shop {
+    id: number; name: string; slug: string; x: number | null; z: number | null; description: string | null;
+    country_name: string | null; city_name: string | null;
+  }
 
   function escapeHtml(value: string): string {
     const div = document.createElement('div');
@@ -50,6 +53,7 @@ import Topbar from '@/components/Topbar.astro';
             <div><div class="shop-card__name">${escapeHtml(s.name)}</div></div>
           </div>
           ${s.description ? `<p class="shop-card__desc">${escapeHtml(s.description)}</p>` : ''}
+          <div class="shop-location">${s.country_name ? escapeHtml(s.city_name ? `${s.country_name} · ${s.city_name}` : s.country_name) : 'Location not specified'}</div>
           <div class="shop-card__coords">X ${s.x ?? '—'} · Z ${s.z ?? '—'}</div>
         </a>`
         )

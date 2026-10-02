@@ -1,0 +1,387 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import Topbar from '@/components/Topbar.astro';
+---
+<BaseLayout title="Admin" activeSection="dashboard">
+  <Topbar slot="topbar" title="Admin" />
+
+  <div id="admin-guard" class="dashboard-empty">Checking admin access…</div>
+
+  <div id="admin-content" hidden>
+    <div class="navbar__links" style="margin-bottom:20px; border-bottom:1px solid var(--border); padding-bottom:10px;">
+      <button class="nav-link admin-tab" data-tab="merchants" aria-current="page">Merchants</button>
+      <button class="nav-link admin-tab" data-tab="catalog">Catalog</button>
+      <button class="nav-link admin-tab" data-tab="countries">Countries</button>
+      <button class="nav-link admin-tab" data-tab="cities">Cities</button>
+    </div>
+
+    <section id="tab-merchants" class="admin-panel">
+      <div class="toolbar"><span class="widget__meta" id="merchant-count" style="font-size:13px;"></span></div>
+      <div id="merchant-list" class="shop-edit-list"></div>
+    </section>
+
+    <section id="tab-catalog" class="admin-panel" hidden>
+      <div class="panel shop-edit" style="margin-bottom:16px;">
+        <div class="shop-edit__title">Import bundled catalog</div>
+        <p class="widget__meta" style="margin-bottom:12px;">One-time, safe to re-run — skips items already imported.</p>
+        <button class="btn btn--primary" id="import-catalog-btn" type="button">Import from items.json</button>
+        <span class="shop-edit__status" id="import-status"></span>
+      </div>
+
+      <div class="panel shop-edit" style="margin-bottom:16px;">
+        <div class="shop-edit__title">Add item</div>
+        <form id="catalog-add-form">
+          <div class="shop-edit__row">
+            <div class="field"><label>minecraft_id</label><input name="minecraftId" placeholder="minecraft:diamond" required /></div>
+            <div class="field"><label>Name</label><input name="name" required /></div>
+            <div class="field"><label>Category</label><input name="category" required /></div>
+          </div>
+          <div class="field"><label>Image URL</label><input name="imageUrl" placeholder="/items/diamond.png" required /></div>
+          <div class="shop-edit__actions">
+            <span class="shop-edit__status" id="catalog-add-status"></span>
+            <button class="btn btn--primary" type="submit">Add</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="field"><input type="text" id="catalog-filter" placeholder="Filter catalog…" /></div>
+      <div id="catalog-list" class="shop-edit-list"></div>
+    </section>
+
+    <section id="tab-countries" class="admin-panel" hidden>
+      <div class="panel shop-edit" style="margin-bottom:16px;">
+        <div class="shop-edit__title">Add country</div>
+        <form id="country-add-form">
+          <div class="shop-edit__row">
+            <div class="field"><label>Name</label><input name="name" required /></div>
+            <div class="field"><label>Slug</label><input name="slug" placeholder="italy" required /></div>
+            <div></div>
+          </div>
+          <div class="shop-edit__actions">
+            <span class="shop-edit__status" id="country-add-status"></span>
+            <button class="btn btn--primary" type="submit">Add</button>
+          </div>
+        </form>
+      </div>
+      <div id="country-list" class="shop-edit-list"></div>
+    </section>
+
+    <section id="tab-cities" class="admin-panel" hidden>
+      <div class="panel shop-edit" style="margin-bottom:16px;">
+        <div class="shop-edit__title">Add city</div>
+        <form id="city-add-form">
+          <div class="shop-edit__row">
+            <div class="field"><label>Country</label><select name="countryId" required></select></div>
+            <div class="field"><label>Name</label><input name="name" required /></div>
+            <div class="field"><label>Slug</label><input name="slug" placeholder="reggio-emilia" required /></div>
+          </div>
+          <div class="shop-edit__actions">
+            <span class="shop-edit__status" id="city-add-status"></span>
+            <button class="btn btn--primary" type="submit">Add</button>
+          </div>
+        </form>
+      </div>
+      <div id="city-list" class="shop-edit-list"></div>
+    </section>
+  </div>
+</BaseLayout>
+
+<script>
+  function escapeHtml(value: string): string {
+    const div = document.createElement('div');
+    div.textContent = value;
+    return div.innerHTML;
+  }
+
+  function slugify(value: string): string {
+    return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  }
+
+  // Auto-fill slug fields from the adjacent name field, only while untouched.
+  document.querySelectorAll('form').forEach((form) => {
+    const nameInput = form.querySelector('[name="name"]') as HTMLInputElement | null;
+    const slugInput = form.querySelector('[name="slug"]') as HTMLInputElement | null;
+    if (!nameInput || !slugInput) return;
+    let slugTouched = false;
+    slugInput.addEventListener('input', () => { slugTouched = true; });
+    nameInput.addEventListener('input', () => { if (!slugTouched) slugInput.value = slugify(nameInput.value); });
+  });
+
+  // -- Tabs --
+  document.querySelectorAll('.admin-tab').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.admin-tab').forEach((b) => b.removeAttribute('aria-current'));
+      btn.setAttribute('aria-current', 'page');
+      const tab = (btn as HTMLElement).dataset.tab;
+      document.querySelectorAll('.admin-panel').forEach((p) => { (p as HTMLElement).hidden = p.id !== `tab-${tab}`; });
+    });
+  });
+
+  // -- Merchants --
+  interface MerchantRow { id: number; discord_username: string | null; display_name: string | null; approved: boolean; is_admin: boolean; shop_count: number; }
+
+  async function loadMerchants() {
+    const res = await fetch('/api/admin/merchants', { credentials: 'same-origin' });
+    const { merchants } = (await res.json()) as { merchants: MerchantRow[] };
+    (document.getElementById('merchant-count') as HTMLElement).textContent = `${merchants.length} merchants`;
+
+    const list = document.getElementById('merchant-list') as HTMLElement;
+    list.innerHTML = merchants.map((m) => `
+      <div class="panel shop-edit" data-id="${m.id}">
+        <div class="shop-edit__title">${escapeHtml(m.display_name ?? m.discord_username ?? `Merchant #${m.id}`)}
+          ${m.is_admin ? '<span class="badge badge--online" style="margin-left:8px;">admin</span>' : ''}</div>
+        <p class="widget__meta">@${escapeHtml(m.discord_username ?? '—')} · ${m.shop_count} shop${m.shop_count === 1 ? '' : 's'}</p>
+        <div class="shop-edit__actions">
+          <span class="badge ${m.approved ? 'badge--online' : 'badge--offline'}">${m.approved ? 'approved' : 'pending'}</span>
+          <button class="btn ${m.approved ? '' : 'btn--primary'}" data-action="${m.approved ? 'revoke' : 'approve'}" data-id="${m.id}">
+            ${m.approved ? 'Revoke' : 'Approve'}
+          </button>
+        </div>
+      </div>
+    `).join('') || '<p class="widget__meta">No merchants yet.</p>';
+
+    list.querySelectorAll('[data-action]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const id = (btn as HTMLElement).dataset.id;
+        const action = (btn as HTMLElement).dataset.action;
+        await fetch(`/api/admin/merchants/${id}/${action}`, { method: 'POST', credentials: 'same-origin' });
+        await loadMerchants();
+      });
+    });
+  }
+
+  // -- Catalog --
+  interface CatalogRow { id: number; minecraft_id: string; name: string; category: string; image_url: string; active: boolean; }
+  let catalogItems: CatalogRow[] = [];
+
+  function renderCatalog(filter = '') {
+    const q = filter.trim().toLowerCase();
+    const filtered = catalogItems.filter((i) => !q || i.name.toLowerCase().includes(q) || i.minecraft_id.includes(q));
+    const list = document.getElementById('catalog-list') as HTMLElement;
+    list.innerHTML = filtered.slice(0, 200).map((i) => `
+      <div class="panel shop-edit" data-id="${i.id}">
+        <div class="shop-edit__title" style="display:flex; align-items:center; gap:10px;">
+          <span class="item-icon-wrap item-icon-wrap--sm"><img class="item-icon" src="${escapeHtml(i.image_url)}" alt=""
+            onerror="this.style.display='none';this.parentElement.classList.add('item-icon-wrap--missing')" /></span>
+          <span>${escapeHtml(i.name)}</span>
+          ${!i.active ? '<span class="badge badge--offline" style="margin-left:8px;">inactive</span>' : ''}
+        </div>
+        <p class="widget__meta">${escapeHtml(i.category)} · ${escapeHtml(i.minecraft_id)}</p>
+        <div class="item-edit-box" hidden></div>
+        <div class="shop-edit__actions">
+          <span class="shop-edit__status"></span>
+          <div style="display:flex; gap:10px;">
+            <button class="btn" data-action="edit">Edit</button>
+            <button class="btn" data-action="toggle" style="${i.active ? 'color:var(--redstone);' : 'color:var(--emerald);'}">${i.active ? 'Deactivate' : 'Activate'}</button>
+          </div>
+        </div>
+      </div>
+    `).join('') || '<p class="widget__meta">No catalog items match.</p>';
+
+    list.querySelectorAll('.shop-edit').forEach((card) => {
+      const id = Number((card as HTMLElement).dataset.id);
+      const item = catalogItems.find((i) => i.id === id)!;
+      const editBtn = card.querySelector('[data-action="edit"]') as HTMLButtonElement;
+      const toggleBtn = card.querySelector('[data-action="toggle"]') as HTMLButtonElement;
+      const editBox = card.querySelector('.item-edit-box') as HTMLElement;
+      const statusEl = card.querySelector('.shop-edit__status') as HTMLElement;
+
+      editBtn.addEventListener('click', () => {
+        if (editBox.hidden && editBox.innerHTML === '') {
+          editBox.innerHTML = `<form class="shop-edit__row" style="margin-bottom:10px;">
+            <div class="field"><label>Name</label><input name="name" value="${escapeHtml(item.name)}" /></div>
+            <div class="field"><label>Category</label><input name="category" value="${escapeHtml(item.category)}" /></div>
+            <div class="field"><label>Image URL</label><input name="imageUrl" value="${escapeHtml(item.image_url)}" /></div>
+            <div style="grid-column: 1 / -1;"><button class="btn btn--primary" type="submit">Save</button></div>
+          </form>`;
+          const form = editBox.querySelector('form') as HTMLFormElement;
+          form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const data = new FormData(form);
+            const res = await fetch(`/api/admin/catalog/${id}`, {
+              method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin',
+              body: JSON.stringify({ name: data.get('name'), category: data.get('category'), imageUrl: data.get('imageUrl') }),
+            });
+            if (!res.ok) { statusEl.textContent = 'Could not save.'; statusEl.className = 'shop-edit__status shop-edit__status--error'; return; }
+            await loadCatalog();
+          });
+        }
+        editBox.hidden = !editBox.hidden;
+      });
+
+      toggleBtn.addEventListener('click', async () => {
+        const endpoint = item.active ? `/api/admin/catalog/${id}` : `/api/admin/catalog/${id}/activate`;
+        await fetch(endpoint, { method: item.active ? 'DELETE' : 'POST', credentials: 'same-origin' });
+        await loadCatalog();
+      });
+    });
+  }
+
+  async function loadCatalog() {
+    const res = await fetch('/api/admin/catalog', { credentials: 'same-origin' });
+    const data = (await res.json()) as { items: CatalogRow[] };
+    catalogItems = data.items;
+    renderCatalog((document.getElementById('catalog-filter') as HTMLInputElement).value);
+  }
+
+  (document.getElementById('catalog-filter') as HTMLInputElement).addEventListener('input', (e) => {
+    renderCatalog((e.target as HTMLInputElement).value);
+  });
+
+  (document.getElementById('import-catalog-btn') as HTMLButtonElement).addEventListener('click', async () => {
+    const status = document.getElementById('import-status') as HTMLElement;
+    status.textContent = 'Importing… this can take a little while for 1500+ items.';
+    status.className = 'shop-edit__status';
+    try {
+      const res = await fetch('/api/admin/catalog/import', { method: 'POST', credentials: 'same-origin' });
+      const data = await res.json();
+      status.textContent = `Imported ${data.inserted} new of ${data.total} total.`;
+      status.className = 'shop-edit__status shop-edit__status--ok';
+      await loadCatalog();
+    } catch {
+      status.textContent = 'Import failed.';
+      status.className = 'shop-edit__status shop-edit__status--error';
+    }
+  });
+
+  (document.getElementById('catalog-add-form') as HTMLFormElement).addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.target as HTMLFormElement;
+    const data = new FormData(form);
+    const status = document.getElementById('catalog-add-status') as HTMLElement;
+    const res = await fetch('/api/admin/catalog', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin',
+      body: JSON.stringify({ minecraftId: data.get('minecraftId'), name: data.get('name'), category: data.get('category'), imageUrl: data.get('imageUrl') }),
+    });
+    const result = await res.json();
+    if (!res.ok) { status.textContent = result.error ?? 'Could not add.'; status.className = 'shop-edit__status shop-edit__status--error'; return; }
+    status.textContent = 'Added.';
+    status.className = 'shop-edit__status shop-edit__status--ok';
+    form.reset();
+    await loadCatalog();
+  });
+
+  // -- Countries --
+  interface CountryRow { id: number; name: string; slug: string; }
+  let countries: CountryRow[] = [];
+
+  async function loadCountries() {
+    const res = await fetch('/api/admin/countries', { credentials: 'same-origin' });
+    const data = (await res.json()) as { countries: CountryRow[] };
+    countries = data.countries;
+
+    const list = document.getElementById('country-list') as HTMLElement;
+    list.innerHTML = countries.map((c) => `
+      <div class="panel shop-edit" data-id="${c.id}">
+        <div class="shop-edit__title">${escapeHtml(c.name)}</div>
+        <p class="widget__meta">${escapeHtml(c.slug)}</p>
+        <div class="shop-edit__actions">
+          <span class="shop-edit__status"></span>
+          <button class="btn" data-action="delete" style="color:var(--redstone);">Delete</button>
+        </div>
+      </div>
+    `).join('') || '<p class="widget__meta">No countries yet.</p>';
+
+    list.querySelectorAll('[data-action="delete"]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const id = (btn.closest('[data-id]') as HTMLElement).dataset.id;
+        if (!confirm('Delete this country? Shops using it will show no location instead.')) return;
+        await fetch(`/api/admin/countries/${id}`, { method: 'DELETE', credentials: 'same-origin' });
+        await loadCountries();
+        await populateCityCountrySelect();
+      });
+    });
+
+    await populateCityCountrySelect();
+  }
+
+  async function populateCityCountrySelect() {
+    const select = document.querySelector('#city-add-form [name="countryId"]') as HTMLSelectElement;
+    select.innerHTML = countries.map((c) => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+  }
+
+  (document.getElementById('country-add-form') as HTMLFormElement).addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.target as HTMLFormElement;
+    const data = new FormData(form);
+    const status = document.getElementById('country-add-status') as HTMLElement;
+    const res = await fetch('/api/admin/countries', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin',
+      body: JSON.stringify({ name: data.get('name'), slug: data.get('slug') }),
+    });
+    const result = await res.json();
+    if (!res.ok) { status.textContent = result.error ?? 'Could not add.'; status.className = 'shop-edit__status shop-edit__status--error'; return; }
+    status.textContent = 'Added.';
+    status.className = 'shop-edit__status shop-edit__status--ok';
+    form.reset();
+    await loadCountries();
+  });
+
+  // -- Cities --
+  interface CityRow { id: number; country_id: number; name: string; slug: string; }
+
+  async function loadCities() {
+    const res = await fetch('/api/admin/cities', { credentials: 'same-origin' });
+    const data = (await res.json()) as { cities: CityRow[] };
+    const countryName = (id: number) => countries.find((c) => c.id === id)?.name ?? '—';
+
+    const list = document.getElementById('city-list') as HTMLElement;
+    list.innerHTML = data.cities.map((c) => `
+      <div class="panel shop-edit" data-id="${c.id}">
+        <div class="shop-edit__title">${escapeHtml(c.name)}</div>
+        <p class="widget__meta">${escapeHtml(countryName(c.country_id))} · ${escapeHtml(c.slug)}</p>
+        <div class="shop-edit__actions">
+          <span class="shop-edit__status"></span>
+          <button class="btn" data-action="delete" style="color:var(--redstone);">Delete</button>
+        </div>
+      </div>
+    `).join('') || '<p class="widget__meta">No cities yet.</p>';
+
+    list.querySelectorAll('[data-action="delete"]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const id = (btn.closest('[data-id]') as HTMLElement).dataset.id;
+        if (!confirm('Delete this city?')) return;
+        await fetch(`/api/admin/cities/${id}`, { method: 'DELETE', credentials: 'same-origin' });
+        await loadCities();
+      });
+    });
+  }
+
+  (document.getElementById('city-add-form') as HTMLFormElement).addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.target as HTMLFormElement;
+    const data = new FormData(form);
+    const status = document.getElementById('city-add-status') as HTMLElement;
+    const res = await fetch('/api/admin/cities', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin',
+      body: JSON.stringify({ countryId: data.get('countryId'), name: data.get('name'), slug: data.get('slug') }),
+    });
+    const result = await res.json();
+    if (!res.ok) { status.textContent = result.error ?? 'Could not add.'; status.className = 'shop-edit__status shop-edit__status--error'; return; }
+    status.textContent = 'Added.';
+    status.className = 'shop-edit__status shop-edit__status--ok';
+    form.reset();
+    await loadCities();
+  });
+
+  // -- Guard + boot --
+  (async () => {
+    try {
+      const res = await fetch('/api/auth/me', { credentials: 'same-origin' });
+      if (!res.ok) { window.location.replace('/login'); return; }
+      const me = await res.json();
+      if (!me.is_admin) {
+        (document.getElementById('admin-guard') as HTMLElement).textContent = "You don't have access to this page.";
+        return;
+      }
+      await loadMerchants();
+      await loadCatalog();
+      await loadCountries();
+      await loadCities();
+      (document.getElementById('admin-guard') as HTMLElement).hidden = true;
+      (document.getElementById('admin-content') as HTMLElement).hidden = false;
+    } catch {
+      (document.getElementById('admin-guard') as HTMLElement).textContent = "Couldn't check admin access right now.";
+    }
+  })();
+</script>

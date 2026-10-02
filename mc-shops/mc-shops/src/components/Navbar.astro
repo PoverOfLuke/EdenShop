@@ -49,11 +49,19 @@ const links = [
     try {
       const res = await fetch('/api/auth/me', { credentials: 'same-origin' });
       if (!res.ok) return;
-      const data = (await res.json()) as { display_name?: string };
+      const data = (await res.json()) as { display_name?: string; is_admin?: boolean };
 
       const area = document.getElementById('nav-auth-area');
       if (!area) return;
       area.innerHTML = '';
+
+      if (data.is_admin) {
+        const adminLink = document.createElement('a');
+        adminLink.className = 'btn';
+        adminLink.href = '/admin';
+        adminLink.textContent = 'Admin';
+        area.appendChild(adminLink);
+      }
 
       const manageLink = document.createElement('a');
       manageLink.className = 'btn btn--primary';

@@ -16,6 +16,7 @@ import Topbar from '@/components/Topbar.astro';
         <div class="detail-head__meta">
           <span class="coord-chip" id="shop-coords"></span>
         </div>
+        <div class="shop-location" id="shop-location"></div>
       </div>
     </div>
 
@@ -46,8 +47,11 @@ import Topbar from '@/components/Topbar.astro';
 <script>
   interface ShopItem {
     id: number; minecraft_id: string;
-    quantity: number | null; sell_amount: number | null; sell_price: string | null;
+    quantity: number | null; compacted_quantity: number | null; essence_quantity: string | null;
+    sell_amount: number | null; sell_price: string | null;
     buy_amount: number | null; buy_price: string | null;
+    compacted_sell_amount: number | null; compacted_sell_price: string | null;
+    compacted_buy_amount: number | null; compacted_buy_price: string | null;
     catalog: { name: string; image_url: string } | null;
   }
 
@@ -66,6 +70,59 @@ import Topbar from '@/components/Topbar.astro';
     </span>`;
   }
 
+  function buyCapacity(essence: string | null, price: string | null, amount: number | null): number | null {
+    if (essence === null || price === null || amount === null) return null;
+    const e = Number(essence), p = Number(price);
+    if (!p) return null;
+    return Math.floor((e / p) * amount);
+  }
+
+  /** Only rendered when at least one of the two modes is actually configured. */
+  function tradeGroupHtml(label: string, tagClass: string, lines: string[]): string {
+    if (lines.length === 0) return '';
+    return `<div class="trade-group">
+      <span class="trade-group__label ${tagClass}">${label}</span>
+      ${lines.join('')}
+    </div>`;
+  }
+
+  function cardHtml(i: ShopItem): string {
+    const name = i.catalog?.name ?? i.minecraft_id;
+
+    const sellLines: string[] = [];
+    if (i.sell_amount !== null && i.sell_price !== null) {
+      const available = i.quantity === 0 ? 'Out of stock' : String(i.quantity ?? '—');
+      sellLines.push(`<div class="trade-subline"><strong>Non Compacted</strong> ${i.sell_amount} → ${i.sell_price} Essence
+        <span class="capacity-line">Available: ${available}</span></div>`);
+    }
+    if (i.compacted_sell_amount !== null && i.compacted_sell_price !== null) {
+      const available = i.compacted_quantity === 0 ? 'Out of stock' : String(i.compacted_quantity ?? '—');
+      sellLines.push(`<div class="trade-subline"><strong>Compacted</strong> ${i.compacted_sell_amount} → ${i.compacted_sell_price} Essence
+        <span class="capacity-line">Available: ${available}</span></div>`);
+    }
+
+    const buyLines: string[] = [];
+    if (i.buy_amount !== null && i.buy_price !== null) {
+      const cap = buyCapacity(i.essence_quantity, i.buy_price, i.buy_amount);
+      buyLines.push(`<div class="trade-subline"><strong>Non Compacted</strong> ${i.buy_amount} → ${i.buy_price} Essence
+        ${cap !== null ? `<span class="capacity-line">Shop can still buy: ${cap}</span>` : ''}</div>`);
+    }
+    if (i.compacted_buy_amount !== null && i.compacted_buy_price !== null) {
+      const cap = buyCapacity(i.essence_quantity, i.compacted_buy_price, i.compacted_buy_amount);
+      buyLines.push(`<div class="trade-subline"><strong>Compacted</strong> ${i.compacted_buy_amount} → ${i.compacted_buy_price} Essence
+        ${cap !== null ? `<span class="capacity-line">Shop can still buy: ${cap}</span>` : ''}</div>`);
+    }
+
+    return `<a class="product-card" href="/products/detail?id=${i.id}">
+      <div class="product-card__top">${itemIcon(i.catalog, i.minecraft_id)}
+        <div><div class="product-card__name">${escapeHtml(name)}</div></div></div>
+      <div class="product-card__trades">
+        ${tradeGroupHtml('SELL TO PLAYER', 'trade-tag--sell', sellLines)}
+        ${tradeGroupHtml('BUY FROM PLAYER', 'trade-tag--buy', buyLines)}
+      </div>
+    </a>`;
+  }
+
   const slug = new URLSearchParams(window.location.search).get('slug');
 
   (async () => {
@@ -75,7 +132,13 @@ import Topbar from '@/components/Topbar.astro';
     try {
       const res = await fetch(`/api/shops/${encodeURIComponent(slug)}/items`);
       if (!res.ok) { loading.textContent = 'Shop not found.'; return; }
-      const data = (await res.json()) as { shop: { name: string; x: number | null; z: number | null; description: string | null; directions: string | null }; items: ShopItem[] };
+      const data = (await res.json()) as {
+        shop: {
+          name: string; x: number | null; z: number | null; description: string | null; directions: string | null;
+          country_name: string | null; city_name: string | null;
+        };
+        items: ShopItem[];
+      };
 
       (document.getElementById('crumb') as HTMLElement).textContent = data.shop.name;
       (document.getElementById('shop-name') as HTMLElement).textContent = data.shop.name;
@@ -83,31 +146,19 @@ import Topbar from '@/components/Topbar.astro';
       (document.getElementById('shop-description') as HTMLElement).textContent = data.shop.description || 'No description yet.';
       (document.getElementById('shop-directions') as HTMLElement).textContent = data.shop.directions || 'No directions yet.';
 
+      const locationEl = document.getElementById('shop-location') as HTMLElement;
+      if (data.shop.country_name) {
+        locationEl.textContent = data.shop.city_name ? `${data.shop.country_name} · ${data.shop.city_name}` : data.shop.country_name;
+      } else {
+        locationEl.textContent = 'Location not specified';
+      }
+
       const grid = document.getElementById('item-grid') as HTMLElement;
       const noItems = document.getElementById('no-items') as HTMLElement;
       (document.getElementById('item-count') as HTMLElement).textContent = `${data.items.length} item${data.items.length === 1 ? '' : 's'}`;
       noItems.hidden = data.items.length > 0;
 
-      grid.innerHTML = data.items
-        .map((i) => {
-          const name = i.catalog?.name ?? i.minecraft_id;
-          const rows: string[] = [];
-          if (i.sell_amount !== null && i.sell_price !== null) {
-            rows.push(`<div class="trade-row"><div class="trade-row__left"><span class="trade-tag trade-tag--sell">sells</span>
-              <span class="stock ${i.quantity === 0 ? 'stock--zero' : ''}">${i.quantity === 0 ? 'out of stock' : `${i.quantity} in stock`}</span></div>
-              <span class="price__unit">${i.sell_price} Essence</span></div>`);
-          }
-          if (i.buy_amount !== null && i.buy_price !== null) {
-            rows.push(`<div class="trade-row"><div class="trade-row__left"><span class="trade-tag trade-tag--buy">buys</span></div>
-              <span class="price__unit">${i.buy_price} Essence</span></div>`);
-          }
-          return `<a class="product-card" href="/products/detail?id=${i.id}">
-            <div class="product-card__top">${itemIcon(i.catalog, i.minecraft_id)}
-              <div><div class="product-card__name">${escapeHtml(name)}</div></div></div>
-            <div class="product-card__trades">${rows.join('')}</div>
-          </a>`;
-        })
-        .join('');
+      grid.innerHTML = data.items.map(cardHtml).join('');
 
       loading.hidden = true;
       (document.getElementById('shop-content') as HTMLElement).hidden = false;
