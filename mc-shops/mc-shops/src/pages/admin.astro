@@ -180,18 +180,30 @@ import Topbar from '@/components/Topbar.astro';
 
     list.querySelectorAll('.shop-edit').forEach((card) => {
       const id = Number((card as HTMLElement).dataset.id);
-      const item = catalogItems.find((i) => i.id === id)!;
       const editBtn = card.querySelector('[data-action="edit"]') as HTMLButtonElement;
       const toggleBtn = card.querySelector('[data-action="toggle"]') as HTMLButtonElement;
       const editBox = card.querySelector('.item-edit-box') as HTMLElement;
       const statusEl = card.querySelector('.shop-edit__status') as HTMLElement;
 
+      const fail = () => {
+        statusEl.textContent = 'This item is no longer in the list — reloading.';
+        statusEl.className = 'shop-edit__status shop-edit__status--error';
+        void loadCatalog();
+      };
+
+      // No non-null assertion here: a stale button (the list re-rendered in
+      // between) used to throw an opaque "cannot read properties of
+      // undefined" instead of just refreshing.
+      const item = () => catalogItems.find((i) => i.id === id);
+
       editBtn.addEventListener('click', () => {
+        const current = item();
+        if (!current) { fail(); return; }
         if (editBox.hidden && editBox.innerHTML === '') {
           editBox.innerHTML = `<form class="shop-edit__row" style="margin-bottom:10px;">
-            <div class="field"><label>Name</label><input name="name" value="${escapeHtml(item.name)}" /></div>
-            <div class="field"><label>Category</label><input name="category" value="${escapeHtml(item.category)}" /></div>
-            <div class="field"><label>Image URL</label><input name="imageUrl" value="${escapeHtml(item.image_url)}" /></div>
+            <div class="field"><label>Name</label><input name="name" value="${escapeHtml(current.name)}" /></div>
+            <div class="field"><label>Category</label><input name="category" value="${escapeHtml(current.category)}" /></div>
+            <div class="field"><label>Image URL</label><input name="imageUrl" value="${escapeHtml(current.image_url)}" /></div>
             <div style="grid-column: 1 / -1;"><button class="btn btn--primary" type="submit">Save</button></div>
           </form>`;
           const form = editBox.querySelector('form') as HTMLFormElement;
@@ -210,8 +222,16 @@ import Topbar from '@/components/Topbar.astro';
       });
 
       toggleBtn.addEventListener('click', async () => {
-        const endpoint = item.active ? `/api/admin/catalog/${id}` : `/api/admin/catalog/${id}/activate`;
-        await fetch(endpoint, { method: item.active ? 'DELETE' : 'POST', credentials: 'same-origin' });
+        const current = item();
+        if (!current) { fail(); return; }
+        const endpoint = current.active ? `/api/admin/catalog/${id}` : `/api/admin/catalog/${id}/activate`;
+        const res = await fetch(endpoint, { method: current.active ? 'DELETE' : 'POST', credentials: 'same-origin' });
+        if (!res.ok) {
+          const detail = (await res.json().catch(() => ({}))) as { error?: string };
+          statusEl.textContent = detail.error ?? 'Could not update the item.';
+          statusEl.className = 'shop-edit__status shop-edit__status--error';
+          return;
+        }
         await loadCatalog();
       });
     });

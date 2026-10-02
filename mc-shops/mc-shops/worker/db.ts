@@ -41,8 +41,50 @@ export interface ShopInput {
   cityId: number | null;
 }
 
+/**
+ * Postgres int8 (BIGINT) columns come back from the pg protocol as JS
+ * strings, not numbers — because they can exceed Number.MAX_SAFE_INTEGER.
+ * Every `id`/`*_id` column here is BIGINT, so a row read straight off the
+ * driver has `id: "1"`, which silently breaks every `row.shop_id === id`
+ * comparison (and every `find(i => i.id === id)` in the client).
+ *
+ * Prices/quantities are deliberately left alone: NUMERIC columns are meant
+ * to stay strings, and INTEGER columns already arrive as numbers.
+ */
+const BIGINT_ID_COLUMNS = ['id', 'shop_id', 'merchant_id', 'country_id', 'city_id'] as const;
+
+const INTEGER_STRING_RE = /^-?\d+$/;
+
+function normalizeIds<T>(rows: unknown): T {
+  if (!Array.isArray(rows)) return rows as T;
+  return rows.map((row) => {
+    const r = row as Record<string, unknown>;
+    for (const column of BIGINT_ID_COLUMNS) {
+      const value = r[column];
+      if (typeof value === 'string' && INTEGER_STRING_RE.test(value)) r[column] = Number(value);
+    }
+    return r;
+  }) as T;
+}
+
+/**
+ * Every query in this module goes through here, so this is the one place
+ * that keeps ids numeric and the `id: number` interfaces honest.
+ */
 function getSql(env: Env) {
-  return neon(env.NEON_DATABASE_URL);
+  const sql = neon(env.NEON_DATABASE_URL);
+
+  const runTag = sql as unknown as (s: TemplateStringsArray, ...p: unknown[]) => Promise<unknown>;
+  const runRaw = sql as unknown as (s: string, p?: unknown) => Promise<unknown>;
+
+  const query = (strings: TemplateStringsArray | string, ...params: unknown[]) =>
+    (typeof strings === 'string' ? runRaw(strings, params[0]) : runTag(strings, ...params)).then(normalizeIds);
+
+  const wrapped = query as unknown as typeof sql;
+  wrapped.transaction = ((...args: Parameters<typeof sql.transaction>) =>
+    sql.transaction(...args).then((sets) => sets.map(normalizeIds))) as typeof sql.transaction;
+
+  return wrapped;
 }
 
 // ---------------------------------------------------------------------------
