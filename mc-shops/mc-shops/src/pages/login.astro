@@ -1,4 +1,5 @@
 ---
+import ThemeToggle from '@/components/ThemeToggle.astro';
 import '@/styles/global.css';
 ---
 <html lang="en">
@@ -6,6 +7,7 @@ import '@/styles/global.css';
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Vendor Login · EdenShop</title>
+    <script is:inline src="/site.js"></script>
   </head>
   <body>
     <div class="login-shell">
@@ -13,6 +15,7 @@ import '@/styles/global.css';
         <div class="login-card__brand">
           <div class="brand-mark"></div>
           <span class="brand-text">EdenShop</span>
+          <ThemeToggle />
         </div>
         <h1>Vendor Login</h1>
         <p class="sub">Log in with Discord to manage your shop and update your products.</p>
@@ -25,25 +28,7 @@ import '@/styles/global.css';
       </div>
     </div>
 
-    <script>
-      const params = new URLSearchParams(window.location.search);
-      const status = params.get('status');
-      const statusEl = document.getElementById('login-status');
-
-      if (statusEl && status === 'pending') {
-        statusEl.textContent = 'Your account is waiting for approval. You’ll be able to log in once a server admin approves it.';
-        statusEl.classList.add('login-status--pending');
-        statusEl.hidden = false;
-      } else if (statusEl && status === 'error') {
-        statusEl.textContent = 'Something went wrong with Discord login. Please try again.';
-        statusEl.classList.add('login-status--error');
-        statusEl.hidden = false;
-      } else {
-        // If already logged in, skip the login page entirely.
-        fetch('/api/auth/me', { credentials: 'same-origin' })
-          .then((res) => { if (res.ok) window.location.replace('/'); })
-          .catch(() => {});
-      }
-    </script>
+    <!-- External file on purpose: Astro would inline this small script, and the CSP (script-src 'self') blocks inline scripts. -->
+    <script is:inline src="/login.js"></script>
   </body>
 </html>

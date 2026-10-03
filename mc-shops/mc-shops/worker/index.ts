@@ -15,9 +15,11 @@ import {
   getShopsByMerchant,
   getShopById,
   getAllShops,
-  getShopBySlug,
+  getShopPublicById,
+  getShopPublicBySlug,
   createShop,
   updateShop,
+  deleteShopCascade,
   ensureSchema,
   getShopItems,
   getShopItemById,
@@ -43,7 +45,6 @@ import {
   createCatalogItem,
   updateCatalogItem,
   setCatalogItemActive,
-  importStaticCatalog,
   getAllMerchantsAdmin,
   setMerchantApproved,
   type Merchant,
@@ -74,18 +75,76 @@ async function readJson(request: Request): Promise<{ body: unknown } | { respons
   }
 }
 
-function isDuplicateKeyError(err: unknown): boolean {
-  const message = err instanceof Error ? err.message : String(err);
-  return message.includes('duplicate key');
+// ---------------------------------------------------------------------------
+// Rate limiting (Cloudflare Workers Rate Limiting binding, see wrangler.jsonc)
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns true when the caller is over the limit. The key combines the
+ * route and the client IP, so the two OAuth routes are counted separately.
+ * Fails OPEN: if the binding is missing (e.g. local dev) or errors out, the
+ * request goes through — a limiter hiccup must never lock everyone out of login.
+ */
+async function isRateLimited(request: Request, env: Env, route: string): Promise<boolean> {
+  if (!env.AUTH_LIMITER) return false;
+  const ip = request.headers.get('CF-Connecting-IP') ?? 'unknown';
+  try {
+    const { success } = await env.AUTH_LIMITER.limit({ key: `${route}:${ip}` });
+    return !success;
+  } catch {
+    return false;
+  }
 }
 
-const SLUG_RE = /^[a-z0-9-]+$/;
+function rateLimitedRedirect(): Response {
+  const headers = new Headers();
+  headers.set('Retry-After', '60');
+  return redirect('/login?status=rate_limited', headers);
+}
+
+// ---------------------------------------------------------------------------
+// Security headers — applied to EVERY response (API and static assets).
+//
+// The CSP was written after checking what the site really loads:
+//  - scripts: only same-origin files (Astro bundles + /site.js). No inline
+//    scripts and no inline event handlers (onerror=...) are used anymore.
+//  - styles: same-origin + Google Fonts CSS; 'unsafe-inline' is needed
+//    because Astro inlines small stylesheets and some templates use style="".
+//  - fonts: Google Fonts files.
+//  - images: same-origin (/items/*.png) + data: URIs.
+//  - fetch(): same-origin API only. Discord login is a plain top-level
+//    redirect, which CSP does not restrict.
+// ---------------------------------------------------------------------------
+
+const CONTENT_SECURITY_POLICY = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src 'self' https://fonts.gstatic.com",
+  "img-src 'self' data:",
+  "connect-src 'self'",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+].join('; ');
+
+function withSecurityHeaders(response: Response): Response {
+  // Responses coming from env.ASSETS.fetch() have immutable headers: copy first.
+  const secured = new Response(response.body, response);
+  secured.headers.set('Content-Security-Policy', CONTENT_SECURITY_POLICY);
+  secured.headers.set('X-Content-Type-Options', 'nosniff');
+  secured.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  secured.headers.set('X-Frame-Options', 'DENY');
+  return secured;
+}
 
 // ---------------------------------------------------------------------------
 // /api/auth/*
 // ---------------------------------------------------------------------------
 
-async function handleDiscordStart(env: Env): Promise<Response> {
+async function handleDiscordStart(request: Request, env: Env): Promise<Response> {
+  if (await isRateLimited(request, env, 'discord-start')) return rateLimitedRedirect();
   const state = generateState();
   const headers = new Headers();
   headers.set('Set-Cookie', createStateCookie(state));
@@ -93,6 +152,7 @@ async function handleDiscordStart(env: Env): Promise<Response> {
 }
 
 async function handleDiscordCallback(request: Request, env: Env): Promise<Response> {
+  if (await isRateLimited(request, env, 'discord-callback')) return rateLimitedRedirect();
   const url = new URL(request.url);
   const code = url.searchParams.get('code');
   const state = url.searchParams.get('state');
@@ -206,8 +266,7 @@ async function parseShopInput(env: Env, body: unknown): Promise<{ input: ShopInp
   const name = typeof b.name === 'string' ? b.name.trim() : '';
   if (!name) return { error: 'Name is required.' };
 
-  const slug = typeof b.slug === 'string' ? b.slug.trim().toLowerCase() : '';
-  if (!SLUG_RE.test(slug)) return { error: 'Slug must contain only lowercase letters, numbers and hyphens.' };
+  // Any `slug` sent by a client is ignored on purpose: slugs are server-only.
 
   const parseCoord = (value: unknown): number | null | 'invalid' => {
     if (value === null || value === undefined || value === '') return null;
@@ -234,7 +293,7 @@ async function parseShopInput(env: Env, body: unknown): Promise<{ input: ShopInp
     if (!city || city.country_id !== countryId) return { error: 'That city does not belong to the selected country.' };
   }
 
-  return { input: { name, slug, x, z, description, directions, countryId, cityId } };
+  return { input: { name, x, z, description, directions, countryId, cityId } };
 }
 
 async function handleShopsCollection(request: Request, env: Env): Promise<Response> {
@@ -257,8 +316,7 @@ async function handleShopsCollection(request: Request, env: Env): Promise<Respon
     try {
       const shop = await createShop(env, merchant.id, parsed.input);
       return json({ shop }, 201);
-    } catch (err) {
-      if (isDuplicateKeyError(err)) return json({ error: 'A shop with this slug already exists.' }, 409);
+    } catch {
       return json({ error: 'Could not create the shop.' }, 500);
     }
   }
@@ -274,6 +332,28 @@ async function handleShopRecordUpdate(request: Request, env: Env, shopId: number
   const owned = await requireOwnedShop(env, merchant, shopId);
   if ('response' in owned) return owned.response;
 
+  if (request.method === 'DELETE') {
+    // The merchant must send the exact shop name (the dashboard asks them to
+    // type it). Checked here too, so a stray or scripted DELETE cannot wipe a shop.
+    const read = await readJson(request);
+    if ('response' in read) return read.response;
+    const confirmName = typeof (read.body as Record<string, unknown> | null)?.confirmName === 'string'
+      ? ((read.body as Record<string, unknown>).confirmName as string).trim()
+      : '';
+    if (confirmName !== owned.shop.name.trim()) {
+      return json({ error: 'The shop name does not match.' }, 400);
+    }
+
+    try {
+      // Ownership is re-checked inside the SQL (merchant_id), shop_items go with it.
+      const deleted = await deleteShopCascade(env, shopId, merchant.id);
+      if (!deleted) return json({ error: 'shop_not_found' }, 404);
+      return json({ ok: true });
+    } catch {
+      return json({ error: 'Could not delete the shop.' }, 500);
+    }
+  }
+
   if (request.method !== 'PUT') return json({ error: 'Method not allowed.' }, 405);
 
   const read = await readJson(request);
@@ -285,8 +365,7 @@ async function handleShopRecordUpdate(request: Request, env: Env, shopId: number
   try {
     const shop = await updateShop(env, shopId, parsed.input);
     return json({ shop });
-  } catch (err) {
-    if (isDuplicateKeyError(err)) return json({ error: 'A shop with this slug already exists.' }, 409);
+  } catch {
     return json({ error: 'Could not update the shop.' }, 500);
   }
 }
@@ -424,8 +503,7 @@ async function handleShopItemsCollection(request: Request, env: Env, shopId: num
       const item = await createShopItem(env, shopId, parsed.input);
       const catalogMap = await getCatalogMap(env);
       return json({ shop: owned.shop, item: enrichShopItem(item, catalogMap) }, 201);
-    } catch (err) {
-      if (isDuplicateKeyError(err)) return json({ error: 'This item is already configured for this shop.' }, 409);
+    } catch {
       return json({ error: 'Could not add the item.' }, 500);
     }
   }
@@ -457,8 +535,7 @@ async function handleShopItemDetail(request: Request, env: Env, shopId: number, 
       const item = await updateShopItem(env, itemId, parsed.input);
       const catalogMap = await getCatalogMap(env);
       return json({ item: enrichShopItem(item, catalogMap) });
-    } catch (err) {
-      if (isDuplicateKeyError(err)) return json({ error: 'This item is already configured for this shop.' }, 409);
+    } catch {
       return json({ error: 'Could not update the item.' }, 500);
     }
   }
@@ -481,16 +558,23 @@ async function handlePublicShops(env: Env): Promise<Response> {
   return json({ shops });
 }
 
-async function handlePublicShopDetail(env: Env, slug: string): Promise<Response> {
+/** `ref` is either a numeric shop id (new links) or a legacy slug (old links). */
+type ShopRef = { id: number } | { slug: string };
+
+async function resolvePublicShop(env: Env, ref: ShopRef) {
+  return 'id' in ref ? getShopPublicById(env, ref.id) : getShopPublicBySlug(env, ref.slug);
+}
+
+async function handlePublicShopDetail(env: Env, ref: ShopRef): Promise<Response> {
   await ensureSchema(env);
-  const shop = await getShopBySlug(env, slug);
+  const shop = await resolvePublicShop(env, ref);
   if (!shop) return json({ error: 'shop_not_found' }, 404);
   return json({ shop });
 }
 
-async function handlePublicShopItems(env: Env, slug: string): Promise<Response> {
+async function handlePublicShopItems(env: Env, ref: ShopRef): Promise<Response> {
   await ensureSchema(env);
-  const shop = await getShopBySlug(env, slug);
+  const shop = await resolvePublicShop(env, ref);
   if (!shop) return json({ error: 'shop_not_found' }, 404);
   const items = await getShopItems(env, shop.id);
   const catalogMap = await getCatalogMap(env);
@@ -546,22 +630,6 @@ async function handleAdminMerchantApproval(request: Request, env: Env, merchantI
   return json({ merchant });
 }
 
-async function handleAdminCatalogImport(request: Request, env: Env): Promise<Response> {
-  const result = await requireAdmin(request, env);
-  if ('response' in result) return result.response;
-  if (request.method !== 'POST') return json({ error: 'Method not allowed.' }, 405);
-
-  await ensureSchema(env);
-  try {
-    const summary = await importStaticCatalog(env);
-    return json(summary);
-  } catch (err) {
-    // Surfaced as JSON so the panel can print the real reason instead of a
-    // generic failure when a chunk is rejected by Postgres.
-    return json({ error: 'Catalog import failed.', detail: err instanceof Error ? err.message : String(err) }, 500);
-  }
-}
-
 function parseCatalogInput(body: unknown): { input: { minecraftId: string; name: string; category: string; imageUrl: string } } | { error: string } {
   const b = (body ?? {}) as Record<string, unknown>;
   const minecraftId = typeof b.minecraftId === 'string' ? b.minecraftId.trim() : '';
@@ -594,8 +662,7 @@ async function handleAdminCatalogCollection(request: Request, env: Env): Promise
     try {
       const item = await createCatalogItem(env, parsed.input);
       return json({ item }, 201);
-    } catch (err) {
-      if (isDuplicateKeyError(err)) return json({ error: 'That minecraft_id already exists in the catalog.' }, 409);
+    } catch {
       return json({ error: 'Could not create the item.' }, 500);
     }
   }
@@ -636,13 +703,11 @@ async function handleAdminCatalogActivate(request: Request, env: Env, id: number
   return json({ ok: true });
 }
 
-function parseNamedSlugInput(body: unknown): { name: string; slug: string } | { error: string } {
+function parseNameInput(body: unknown): { name: string } | { error: string } {
   const b = (body ?? {}) as Record<string, unknown>;
   const name = typeof b.name === 'string' ? b.name.trim() : '';
-  const slug = typeof b.slug === 'string' ? b.slug.trim().toLowerCase() : '';
   if (!name) return { error: 'Name is required.' };
-  if (!SLUG_RE.test(slug)) return { error: 'Slug must contain only lowercase letters, numbers and hyphens.' };
-  return { name, slug };
+  return { name };
 }
 
 async function handleAdminCountriesCollection(request: Request, env: Env): Promise<Response> {
@@ -658,13 +723,12 @@ async function handleAdminCountriesCollection(request: Request, env: Env): Promi
   if (request.method === 'POST') {
     const read = await readJson(request);
     if ('response' in read) return read.response;
-    const parsed = parseNamedSlugInput(read.body);
+    const parsed = parseNameInput(read.body);
     if ('error' in parsed) return json({ error: parsed.error }, 400);
     try {
-      const country = await createCountry(env, parsed.name, parsed.slug);
+      const country = await createCountry(env, parsed.name);
       return json({ country }, 201);
-    } catch (err) {
-      if (isDuplicateKeyError(err)) return json({ error: 'A country with this slug already exists.' }, 409);
+    } catch {
       return json({ error: 'Could not create the country.' }, 500);
     }
   }
@@ -679,13 +743,12 @@ async function handleAdminCountryItem(request: Request, env: Env, id: number): P
   if (request.method === 'PUT') {
     const read = await readJson(request);
     if ('response' in read) return read.response;
-    const parsed = parseNamedSlugInput(read.body);
+    const parsed = parseNameInput(read.body);
     if ('error' in parsed) return json({ error: parsed.error }, 400);
     try {
-      const country = await updateCountry(env, id, parsed.name, parsed.slug);
+      const country = await updateCountry(env, id, parsed.name);
       return json({ country });
-    } catch (err) {
-      if (isDuplicateKeyError(err)) return json({ error: 'A country with this slug already exists.' }, 409);
+    } catch {
       return json({ error: 'Could not update the country.' }, 500);
     }
   }
@@ -714,13 +777,12 @@ async function handleAdminCitiesCollection(request: Request, env: Env): Promise<
     const b = (read.body ?? {}) as Record<string, unknown>;
     const countryId = Number(b.countryId);
     if (!Number.isFinite(countryId)) return json({ error: 'A country is required.' }, 400);
-    const parsed = parseNamedSlugInput(read.body);
+    const parsed = parseNameInput(read.body);
     if ('error' in parsed) return json({ error: parsed.error }, 400);
     try {
-      const city = await createCity(env, countryId, parsed.name, parsed.slug);
+      const city = await createCity(env, countryId, parsed.name);
       return json({ city }, 201);
-    } catch (err) {
-      if (isDuplicateKeyError(err)) return json({ error: 'A city with this slug already exists in that country.' }, 409);
+    } catch {
       return json({ error: 'Could not create the city.' }, 500);
     }
   }
@@ -738,13 +800,12 @@ async function handleAdminCityItem(request: Request, env: Env, id: number): Prom
     const b = (read.body ?? {}) as Record<string, unknown>;
     const countryId = Number(b.countryId);
     if (!Number.isFinite(countryId)) return json({ error: 'A country is required.' }, 400);
-    const parsed = parseNamedSlugInput(read.body);
+    const parsed = parseNameInput(read.body);
     if ('error' in parsed) return json({ error: parsed.error }, 400);
     try {
-      const city = await updateCity(env, id, countryId, parsed.name, parsed.slug);
+      const city = await updateCity(env, id, countryId, parsed.name);
       return json({ city });
-    } catch (err) {
-      if (isDuplicateKeyError(err)) return json({ error: 'A city with this slug already exists in that country.' }, 409);
+    } catch {
       return json({ error: 'Could not update the city.' }, 500);
     }
   }
@@ -761,83 +822,83 @@ async function handleAdminCityItem(request: Request, env: Env, id: number): Prom
 // Router
 // ---------------------------------------------------------------------------
 
+async function route(request: Request, env: Env): Promise<Response> {
+  const url = new URL(request.url);
+  const { pathname } = url;
+
+  if (pathname === '/api/auth/discord') return handleDiscordStart(request, env);
+  if (pathname === '/api/auth/discord/callback') return handleDiscordCallback(request, env);
+  if (pathname === '/api/auth/logout') return handleLogout();
+  if (pathname === '/api/auth/me') return handleMe(request, env);
+
+  if (pathname === '/api/catalog/search') return handleCatalogSearch(request, env);
+  if (pathname === '/api/countries') return handlePublicCountries(env);
+  if (pathname === '/api/cities') return handlePublicCities(request, env);
+
+  if (pathname === '/api/shops') return handlePublicShops(env);
+  if (pathname === '/api/products') return handlePublicProducts(env);
+
+  const publicProductMatch = pathname.match(/^\/api\/products\/(\d+)$/);
+  if (publicProductMatch) return handlePublicProductDetail(env, Number(publicProductMatch[1]));
+
+  // Current links use the numeric id...
+  const publicShopItemsByIdMatch = pathname.match(/^\/api\/shops\/by-id\/(\d+)\/items$/);
+  if (publicShopItemsByIdMatch) return handlePublicShopItems(env, { id: Number(publicShopItemsByIdMatch[1]) });
+
+  const publicShopByIdMatch = pathname.match(/^\/api\/shops\/by-id\/(\d+)$/);
+  if (publicShopByIdMatch) return handlePublicShopDetail(env, { id: Number(publicShopByIdMatch[1]) });
+
+  // ...legacy slug routes are kept ONLY so links shared before this change still open.
+  const publicShopItemsMatch = pathname.match(/^\/api\/shops\/([a-z0-9-]+)\/items$/);
+  if (publicShopItemsMatch) return handlePublicShopItems(env, { slug: publicShopItemsMatch[1] });
+
+  const publicShopMatch = pathname.match(/^\/api\/shops\/([a-z0-9-]+)$/);
+  if (publicShopMatch) return handlePublicShopDetail(env, { slug: publicShopMatch[1] });
+
+  if (pathname === '/api/merchant/shops') return handleShopsCollection(request, env);
+
+  const shopMatch = pathname.match(/^\/api\/merchant\/shops\/(\d+)$/);
+  if (shopMatch) return handleShopRecordUpdate(request, env, Number(shopMatch[1]));
+
+  const itemsCollectionMatch = pathname.match(/^\/api\/merchant\/shops\/(\d+)\/items$/);
+  if (itemsCollectionMatch) return handleShopItemsCollection(request, env, Number(itemsCollectionMatch[1]));
+
+  const itemDetailMatch = pathname.match(/^\/api\/merchant\/shops\/(\d+)\/items\/(\d+)$/);
+  if (itemDetailMatch) {
+    return handleShopItemDetail(request, env, Number(itemDetailMatch[1]), Number(itemDetailMatch[2]));
+  }
+
+  // -- Admin --
+  if (pathname === '/api/admin/merchants') return handleAdminMerchants(request, env);
+
+  const merchantApproveMatch = pathname.match(/^\/api\/admin\/merchants\/(\d+)\/approve$/);
+  if (merchantApproveMatch) return handleAdminMerchantApproval(request, env, Number(merchantApproveMatch[1]), true);
+
+  const merchantRevokeMatch = pathname.match(/^\/api\/admin\/merchants\/(\d+)\/revoke$/);
+  if (merchantRevokeMatch) return handleAdminMerchantApproval(request, env, Number(merchantRevokeMatch[1]), false);
+
+  if (pathname === '/api/admin/catalog') return handleAdminCatalogCollection(request, env);
+
+  const catalogActivateMatch = pathname.match(/^\/api\/admin\/catalog\/(\d+)\/activate$/);
+  if (catalogActivateMatch) return handleAdminCatalogActivate(request, env, Number(catalogActivateMatch[1]));
+
+  const catalogItemMatch = pathname.match(/^\/api\/admin\/catalog\/(\d+)$/);
+  if (catalogItemMatch) return handleAdminCatalogItem(request, env, Number(catalogItemMatch[1]));
+
+  if (pathname === '/api/admin/countries') return handleAdminCountriesCollection(request, env);
+  const countryItemMatch = pathname.match(/^\/api\/admin\/countries\/(\d+)$/);
+  if (countryItemMatch) return handleAdminCountryItem(request, env, Number(countryItemMatch[1]));
+
+  if (pathname === '/api/admin/cities') return handleAdminCitiesCollection(request, env);
+  const cityItemMatch = pathname.match(/^\/api\/admin\/cities\/(\d+)$/);
+  if (cityItemMatch) return handleAdminCityItem(request, env, Number(cityItemMatch[1]));
+
+  // Everything else: serve the static Astro site as before.
+  return env.ASSETS.fetch(request);
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    const url = new URL(request.url);
-    const { pathname } = url;
-
-    // TEMPORARY — safe to remove once you've confirmed env vars are set.
-    if (pathname === '/api/debug/env') {
-      return json({
-        DISCORD_CLIENT_ID: Boolean(env.DISCORD_CLIENT_ID),
-        DISCORD_CLIENT_SECRET: Boolean(env.DISCORD_CLIENT_SECRET),
-        DISCORD_REDIRECT_URI: Boolean(env.DISCORD_REDIRECT_URI),
-        SESSION_SECRET: Boolean(env.SESSION_SECRET),
-        NEON_DATABASE_URL: Boolean(env.NEON_DATABASE_URL),
-      });
-    }
-
-    if (pathname === '/api/auth/discord') return handleDiscordStart(env);
-    if (pathname === '/api/auth/discord/callback') return handleDiscordCallback(request, env);
-    if (pathname === '/api/auth/logout') return handleLogout();
-    if (pathname === '/api/auth/me') return handleMe(request, env);
-
-    if (pathname === '/api/catalog/search') return handleCatalogSearch(request, env);
-    if (pathname === '/api/countries') return handlePublicCountries(env);
-    if (pathname === '/api/cities') return handlePublicCities(request, env);
-
-    if (pathname === '/api/shops') return handlePublicShops(env);
-    if (pathname === '/api/products') return handlePublicProducts(env);
-
-    const publicProductMatch = pathname.match(/^\/api\/products\/(\d+)$/);
-    if (publicProductMatch) return handlePublicProductDetail(env, Number(publicProductMatch[1]));
-
-    const publicShopItemsMatch = pathname.match(/^\/api\/shops\/([a-z0-9-]+)\/items$/);
-    if (publicShopItemsMatch) return handlePublicShopItems(env, publicShopItemsMatch[1]);
-
-    const publicShopMatch = pathname.match(/^\/api\/shops\/([a-z0-9-]+)$/);
-    if (publicShopMatch) return handlePublicShopDetail(env, publicShopMatch[1]);
-
-    if (pathname === '/api/merchant/shops') return handleShopsCollection(request, env);
-
-    const shopMatch = pathname.match(/^\/api\/merchant\/shops\/(\d+)$/);
-    if (shopMatch) return handleShopRecordUpdate(request, env, Number(shopMatch[1]));
-
-    const itemsCollectionMatch = pathname.match(/^\/api\/merchant\/shops\/(\d+)\/items$/);
-    if (itemsCollectionMatch) return handleShopItemsCollection(request, env, Number(itemsCollectionMatch[1]));
-
-    const itemDetailMatch = pathname.match(/^\/api\/merchant\/shops\/(\d+)\/items\/(\d+)$/);
-    if (itemDetailMatch) {
-      return handleShopItemDetail(request, env, Number(itemDetailMatch[1]), Number(itemDetailMatch[2]));
-    }
-
-    // -- Admin --
-    if (pathname === '/api/admin/merchants') return handleAdminMerchants(request, env);
-
-    const merchantApproveMatch = pathname.match(/^\/api\/admin\/merchants\/(\d+)\/approve$/);
-    if (merchantApproveMatch) return handleAdminMerchantApproval(request, env, Number(merchantApproveMatch[1]), true);
-
-    const merchantRevokeMatch = pathname.match(/^\/api\/admin\/merchants\/(\d+)\/revoke$/);
-    if (merchantRevokeMatch) return handleAdminMerchantApproval(request, env, Number(merchantRevokeMatch[1]), false);
-
-    if (pathname === '/api/admin/catalog/import') return handleAdminCatalogImport(request, env);
-    if (pathname === '/api/admin/catalog') return handleAdminCatalogCollection(request, env);
-
-    const catalogActivateMatch = pathname.match(/^\/api\/admin\/catalog\/(\d+)\/activate$/);
-    if (catalogActivateMatch) return handleAdminCatalogActivate(request, env, Number(catalogActivateMatch[1]));
-
-    const catalogItemMatch = pathname.match(/^\/api\/admin\/catalog\/(\d+)$/);
-    if (catalogItemMatch) return handleAdminCatalogItem(request, env, Number(catalogItemMatch[1]));
-
-    if (pathname === '/api/admin/countries') return handleAdminCountriesCollection(request, env);
-    const countryItemMatch = pathname.match(/^\/api\/admin\/countries\/(\d+)$/);
-    if (countryItemMatch) return handleAdminCountryItem(request, env, Number(countryItemMatch[1]));
-
-    if (pathname === '/api/admin/cities') return handleAdminCitiesCollection(request, env);
-    const cityItemMatch = pathname.match(/^\/api\/admin\/cities\/(\d+)$/);
-    if (cityItemMatch) return handleAdminCityItem(request, env, Number(cityItemMatch[1]));
-
-    // Everything else: serve the static Astro site as before.
-    return env.ASSETS.fetch(request);
+    return withSecurityHeaders(await route(request, env));
   },
 };

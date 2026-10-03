@@ -71,8 +71,7 @@ import Topbar from '@/components/Topbar.astro';
     const alt = escapeHtml(catalog?.name ?? name);
     const src = catalog?.image_url ?? '';
     return `<span class="item-icon-wrap">
-      <img class="item-icon" src="${escapeHtml(src)}" alt="${alt}"
-        onerror="this.style.display='none';this.parentElement.classList.add('item-icon-wrap--missing')" />
+      <img class="item-icon" src="${escapeHtml(src)}" alt="${alt}" />
     </span>`;
   }
 

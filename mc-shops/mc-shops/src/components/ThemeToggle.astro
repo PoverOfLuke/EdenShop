@@ -1,0 +1,14 @@
+---
+// Light/dark switch. The behaviour lives in /site.js (same-origin script).
+---
+<button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch theme" title="Switch theme">
+  <svg class="theme-toggle__icon theme-toggle__icon--moon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+    <path fill="currentColor" d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" />
+  </svg>
+  <svg class="theme-toggle__icon theme-toggle__icon--sun" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+    <circle cx="12" cy="12" r="4.2" fill="currentColor" />
+    <g stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <path d="M12 2.5v2.6M12 18.9v2.6M2.5 12h2.6M18.9 12h2.6M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8" />
+    </g>
+  </svg>
+</button>

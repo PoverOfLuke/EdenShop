@@ -15,13 +15,14 @@ duplicato su Neon.
 ```
 src/
   layouts/BaseLayout.astro     layout con navbar orizzontale in cima
-  components/                  Navbar, Topbar
+  components/                  Navbar, Topbar, ThemeToggle
   data/items.json              catalogo statico Minecraft (1505 item)
   pages/
     index.astro                Home con i widget
+    admin.astro                pannello admin (merchant, catalogo, paesi, città)
     login.astro                accesso venditori via Discord
     shops/index.astro          elenco negozi
-    shops/detail.astro         dettaglio negozio + suoi prodotti (?slug=)
+    shops/detail.astro         dettaglio negozio + suoi prodotti (?id=)
     products/index.astro       elenco prodotti con ricerca e filtri
     products/detail.astro      dettaglio prodotto, con link al negozio (?id=)
     dashboard.astro            i miei negozi (crea/modifica)
@@ -30,18 +31,19 @@ src/
 worker/
   index.ts                     router: /api/* + fallback agli asset statici
   db.ts                        query Neon (merchants, shops, shop_items)
-  catalog.ts                   lettura di src/data/items.json
   discord.ts                   OAuth2 Discord
   session.ts                   cookie di sessione firmato (HMAC)
   env.d.ts                     tipo Env con i secret richiesti
 public/
   items/*.png                  icone del catalogo, una per oggetto
+  site.js                      tema chiaro/scuro + fallback immagini (script same-origin, vedi CSP)
+  login.js                     messaggi di stato e redirect della pagina /login (esterno perché la CSP blocca gli script inline)
 astro.config.mjs
 wrangler.jsonc                 deploy Worker + asset da dist/
 ```
 
 > Le pagine `detail` non sono route dinamiche: `detail.astro` è un file
-> statico che legge `?slug=` / `?id=` e chiama l'API lato browser. Quindi
+> statico che legge `?id=` (o il vecchio `?slug=`, solo per i link già condivisi) e chiama l'API lato browser. Quindi
 > i dettagli restano accessibili anche senza rebuild quando i dati cambiano.
 
 ## Modello dati
@@ -51,7 +53,8 @@ Tre tabelle su Neon:
 - `merchants` — `discord_user_id`, `discord_username`, `display_name`,
   `approved`. Al primo login la riga viene creata con `approved = false`;
   finché un admin non la approva l'accesso al dashboard resta negato.
-- `shops` — `merchant_id`, `name`, `slug` (univoco), `x`, `z`,
+- `shops` — `merchant_id`, `name`, `slug` (univoco, **generato e usato solo
+  dal server**: non è mai mostrato né modificabile, vedi sotto), `x`, `z`,
   `description`, `directions`.
 - `shop_items` — i prodotti di un negozio, univochi su
   `(shop_id, minecraft_id)`. La tabella viene creata automaticamente da
@@ -78,9 +81,8 @@ almeno una delle quattro coppie. I prezzi sono `NUMERIC(12,2)` e la valuta
 ## Pagine e funzioni
 
 - **Home** (`/`): widget di riepilogo (negozi registrati, prodotti
-  configurati, valore totale in vendita, prodotti esauriti) più i negozi più
-  recenti e le scorte basse.
-- **Negozi** (`/shops`, `/shops/detail?slug=`): elenco dei negozi; ogni
+  configurati) più i negozi più recenti e le scorte basse.
+- **Negozi** (`/shops`, `/shops/detail?id=`): elenco dei negozi; ogni
   negozio ha coordinate (X/Z), descrizione, indicazioni per raggiungerlo e
   la sua lista prodotti.
 - **Prodotti** (`/products`, `/products/detail?id=`): elenco di tutti i
@@ -99,8 +101,9 @@ Endpoint pubblici, senza autenticazione (stessi dati già visibili nel sito):
 | Metodo | Path | Descrizione |
 | --- | --- | --- |
 | GET | `/api/shops` | tutti i negozi |
-| GET | `/api/shops/:slug` | un negozio |
-| GET | `/api/shops/:slug/items` | un negozio con i suoi prodotti |
+| GET | `/api/shops/by-id/:id` | un negozio |
+| GET | `/api/shops/by-id/:id/items` | un negozio con i suoi prodotti |
+| GET | `/api/shops/:slug`, `/api/shops/:slug/items` | **legacy**: solo per i vecchi link `?slug=`; gli slug non sono più restituiti da nessuna API |
 | GET | `/api/products` | tutti i prodotti, con dati del negozio |
 | GET | `/api/products/:id` | un prodotto |
 | GET | `/api/catalog/search?q=` | ricerca nel catalogo (max 30) |
@@ -120,12 +123,40 @@ verificata anche la proprietà):
 | Metodo | Path | Descrizione |
 | --- | --- | --- |
 | GET, POST | `/api/merchant/shops` | lista / crea i propri negozi |
-| PUT | `/api/merchant/shops/:id` | aggiorna un negozio |
+| PUT | `/api/merchant/shops/:id` | aggiorna un negozio (lo slug non cambia mai) |
+| DELETE | `/api/merchant/shops/:id` | cancella il proprio negozio **e tutti i suoi prodotti**; il body deve contenere `{ "confirmName": "<nome esatto dello shop>" }` |
 | GET, POST | `/api/merchant/shops/:id/items` | lista / aggiunge prodotti |
 | PUT, DELETE | `/api/merchant/shops/:id/items/:itemId` | aggiorna / elimina un prodotto |
 
 Tutte le richieste non gestite ricadono su `env.ASSETS.fetch(request)`,
 cioè il sito statico.
+
+## Sicurezza
+
+- **Slug interni**: gli slug di negozi, paesi e città sono generati dal
+  server (`generateSlug` in `worker/db.ts`: nome + suffisso casuale), restano
+  stabili anche se si rinomina l'elemento e non compaiono in nessun form né
+  in nessuna risposta API. Le pagine usano l'`id` numerico.
+- **Nessun endpoint di debug**: `/api/debug/env` è stato rimosso. Non
+  aggiungere endpoint pubblici che mostrino env var o secret.
+- **Rate limiting OAuth**: `/api/auth/discord` e `/api/auth/discord/callback`
+  sono limitati a 10 richieste / 60 s per IP e per route, con il binding
+  Cloudflare `AUTH_LIMITER` (`ratelimits` in `wrangler.jsonc`). Oltre il limite
+  si viene rimandati a `/login?status=rate_limited`. Se il binding manca il
+  Worker non limita (fail-open) invece di bloccare il login.
+- **Security headers** su ogni risposta (`withSecurityHeaders` in
+  `worker/index.ts`): `Content-Security-Policy`, `X-Content-Type-Options`,
+  `Referrer-Policy`, `X-Frame-Options`. La CSP è `script-src 'self'`: **non
+  usare script inline né attributi `onclick=`/`onerror=`** nelle pagine; il
+  codice condiviso va in `public/site.js` o in un `<script>` di Astro (che
+  viene emesso come file). Se aggiungi risorse esterne (analytics, font,
+  immagini remote) devi aggiornare la CSP. Dopo `astro build`, controlla che nessuna pagina abbia script inline:
+  `Select-String -Path dist\**\*.html -Pattern '<script(?![^>]*src=)'` (PowerShell) non deve dare risultati.
+- **Query con colonne esplicite**: niente `SELECT *` / `RETURNING *` in
+  `worker/db.ts`; ogni query elenca le colonne (costanti `*_COLUMNS`), così
+  una colonna aggiunta in futuro non diventa pubblica per errore.
+- **Cancellazione negozio**: ownership verificata lato server (route + SQL) e
+  cancellazione di shop e `shop_items` in un'unica istruzione atomica.
 
 ## Variabili d'ambiente
 
@@ -140,9 +171,10 @@ Secret da configurare su Cloudflare
 ## Catalogo
 
 `src/data/items.json` contiene i 1505 item ufficiali e `public/items/` le
-1505 immagini corrispondenti, entrambi **versionati nel repo** — non
-sovrascriverli, il formato (`name`, `minecraft_id`, `category`,
-`image_url`) è quello che si aspetta `worker/catalog.ts`.
+1505 immagini corrispondenti, entrambi **versionati nel repo**. Il catalogo
+su Neon (`catalog_items`) è già popolato e si gestisce dal pannello Admin;
+l'import da `items.json` è stato rimosso (non serve più), il file resta come
+archivio di riferimento.
 
 ## Sviluppo locale
 
@@ -174,10 +206,7 @@ Il progetto è pensato per Cloudflare Workers: `wrangler.jsonc` dichiara
 
 ## Da fare
 
-1. **Rimuovere `/api/debug/env`** in `worker/index.ts`. È un endpoint
-   temporaneo, marcato come tale nel codice, che espone quali secret sono
-   configurati. Va tolto una volta confermato il problema di binding delle
-   variabili d'ambiente.
-2. Gestire l'approvazione dei merchant: oggi `merchants.approved` va
-   cambiata a mano su Neon, non c'è ancora un flusso admin.
-3. Definire il ruolo "admin" per approvare i venditori, se serve.
+1. Ridisegnare la Home (oggi mostra solo negozi registrati e prodotti
+   configurati; valore totale ed esauriti sono stati tolti di proposito).
+2. Quando tutti i vecchi link `?slug=` sono sostituiti, rimuovere le route
+   legacy `/api/shops/:slug*` e `getShopPublicBySlug`.

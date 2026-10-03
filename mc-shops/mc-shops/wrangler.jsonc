@@ -6,5 +6,14 @@
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS"
-  }
+  },
+  // Rate limit for /api/auth/discord and /api/auth/discord/callback:
+  // max 10 requests per 60 seconds per IP and route (the key is built in worker/index.ts).
+  "ratelimits": [
+    {
+      "name": "AUTH_LIMITER",
+      "namespace_id": "1001",
+      "simple": { "limit": 10, "period": 60 }
+    }
+  ]
 }

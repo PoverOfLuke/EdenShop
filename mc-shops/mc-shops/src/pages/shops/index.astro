@@ -21,7 +21,7 @@ import Topbar from '@/components/Topbar.astro';
 
 <script>
   interface Shop {
-    id: number; name: string; slug: string; x: number | null; z: number | null; description: string | null;
+    id: number; name: string; x: number | null; z: number | null; description: string | null;
     country_name: string | null; city_name: string | null;
   }
 
@@ -48,7 +48,7 @@ import Topbar from '@/components/Topbar.astro';
       grid.innerHTML = shops
         .map(
           (s) => `
-        <a class="shop-card" href="/shops/detail?slug=${encodeURIComponent(s.slug)}">
+        <a class="shop-card" href="/shops/detail?id=${s.id}">
           <div class="shop-card__head">
             <div><div class="shop-card__name">${escapeHtml(s.name)}</div></div>
           </div>

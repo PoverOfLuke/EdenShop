@@ -16,4 +16,8 @@ export interface Env {
   // Neon connection string, used only by this Worker (separate from
   // whatever the Python scraper's GitHub Action uses).
   NEON_DATABASE_URL: string;
+
+  // Cloudflare Workers Rate Limiting binding (declared in wrangler.jsonc).
+  // Optional on purpose: if it is missing the Worker simply skips rate limiting.
+  AUTH_LIMITER?: RateLimit;
 }

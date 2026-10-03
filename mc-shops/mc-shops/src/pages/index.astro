@@ -23,16 +23,6 @@ import Topbar from '@/components/Topbar.astro';
         <div class="widget__value" id="stat-products">0</div>
         <div class="widget__meta">across all shops</div>
       </div>
-      <div class="widget">
-        <div class="widget__label">Total value for sale</div>
-        <div class="widget__value" id="stat-value">0<span style="color:var(--text-faint); font-size:15px;"> Essence</span></div>
-        <div class="widget__meta">estimated at unit price</div>
-      </div>
-      <div class="widget">
-        <div class="widget__label">Out of stock</div>
-        <div class="widget__value" id="stat-outofstock">0</div>
-        <div class="widget__meta">need restocking</div>
-      </div>
     </section>
 
     <div class="home-columns">
@@ -54,7 +44,7 @@ import Topbar from '@/components/Topbar.astro';
 </BaseLayout>
 
 <script>
-  interface Shop { id: number; name: string; slug: string; x: number | null; z: number | null; created_at: string; }
+  interface Shop { id: number; name: string; x: number | null; z: number | null; created_at: string; }
   interface ShopItem {
     id: number; minecraft_id: string; quantity: number | null; sell_price: string | null;
     catalog: { name: string; image_url: string } | null;
@@ -77,17 +67,6 @@ import Topbar from '@/components/Topbar.astro';
 
       (document.getElementById('stat-shops') as HTMLElement).textContent = String(shops.length);
       (document.getElementById('stat-products') as HTMLElement).textContent = String(items.length);
-
-      const totalValue = items.reduce((sum, i) => {
-        const price = i.sell_price !== null ? Number(i.sell_price) : 0;
-        const qty = i.quantity !== null ? Number(i.quantity) : 0;
-        return sum + price * qty;
-      }, 0);
-      (document.getElementById('stat-value') as HTMLElement).innerHTML =
-        `${totalValue.toFixed(1)}<span style="color:var(--text-faint); font-size:15px;"> Essence</span>`;
-
-      const outOfStock = items.filter((i) => i.sell_price !== null && (i.quantity ?? 0) === 0).length;
-      (document.getElementById('stat-outofstock') as HTMLElement).textContent = String(outOfStock);
 
       const newestShopsEl = document.getElementById('newest-shops') as HTMLElement;
       newestShopsEl.innerHTML = shops.slice(0, 6)

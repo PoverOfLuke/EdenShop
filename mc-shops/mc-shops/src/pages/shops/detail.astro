@@ -65,8 +65,7 @@ import Topbar from '@/components/Topbar.astro';
     const alt = escapeHtml(catalog?.name ?? fallbackName);
     const src = catalog?.image_url ?? '';
     return `<span class="item-icon-wrap">
-      <img class="item-icon" src="${escapeHtml(src)}" alt="${alt}"
-        onerror="this.style.display='none';this.parentElement.classList.add('item-icon-wrap--missing')" />
+      <img class="item-icon" src="${escapeHtml(src)}" alt="${alt}" />
     </span>`;
   }
 
@@ -123,22 +122,39 @@ import Topbar from '@/components/Topbar.astro';
     </a>`;
   }
 
-  const slug = new URLSearchParams(window.location.search).get('slug');
+  // Links use the numeric shop id: /shops/detail?id=12
+  // Old links shared before slugs became internal (?slug=...) still work: they are
+  // resolved once and the address bar is then switched to the id form.
+  const params = new URLSearchParams(window.location.search);
+  const idParam = params.get('id');
+  const legacySlug = params.get('slug');
+
+  function itemsEndpoint(): string | null {
+    if (idParam && /^\d+$/.test(idParam)) return `/api/shops/by-id/${idParam}/items`;
+    if (legacySlug) return `/api/shops/${encodeURIComponent(legacySlug)}/items`;
+    return null;
+  }
 
   (async () => {
     const loading = document.getElementById('shop-loading') as HTMLElement;
-    if (!slug) { loading.textContent = 'Shop not found.'; return; }
+    const endpoint = itemsEndpoint();
+    if (!endpoint) { loading.textContent = 'Shop not found.'; return; }
 
     try {
-      const res = await fetch(`/api/shops/${encodeURIComponent(slug)}/items`);
+      const res = await fetch(endpoint);
       if (!res.ok) { loading.textContent = 'Shop not found.'; return; }
       const data = (await res.json()) as {
         shop: {
-          name: string; x: number | null; z: number | null; description: string | null; directions: string | null;
+          id: number; name: string; x: number | null; z: number | null; description: string | null; directions: string | null;
           country_name: string | null; city_name: string | null;
         };
         items: ShopItem[];
       };
+
+      if (!idParam) {
+        // Legacy ?slug= link: drop the slug from the address bar.
+        history.replaceState(null, '', `/shops/detail?id=${data.shop.id}`);
+      }
 
       (document.getElementById('crumb') as HTMLElement).textContent = data.shop.name;
       (document.getElementById('shop-name') as HTMLElement).textContent = data.shop.name;

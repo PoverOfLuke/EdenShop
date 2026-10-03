@@ -41,7 +41,7 @@ import Topbar from '@/components/Topbar.astro';
 
 <script>
   interface ShopItem {
-    id: number; minecraft_id: string; shop_name: string; shop_slug: string;
+    id: number; minecraft_id: string; shop_name: string; shop_id: number;
     quantity: number | null; sell_amount: number | null; sell_price: string | null;
     buy_amount: number | null; buy_price: string | null;
     catalog: { name: string; category: string; image_url: string } | null;
@@ -57,8 +57,7 @@ import Topbar from '@/components/Topbar.astro';
     const alt = escapeHtml(catalog?.name ?? fallbackName);
     const src = catalog?.image_url ?? '';
     return `<span class="item-icon-wrap">
-      <img class="item-icon" src="${escapeHtml(src)}" alt="${alt}"
-        onerror="this.style.display='none';this.parentElement.classList.add('item-icon-wrap--missing')" />
+      <img class="item-icon" src="${escapeHtml(src)}" alt="${alt}" />
     </span>`;
   }
 
@@ -76,7 +75,7 @@ import Topbar from '@/components/Topbar.astro';
     }
     return `<a class="product-card" href="/products/detail?id=${i.id}"
         data-name="${escapeHtml(name.toLowerCase())}" data-category="${escapeHtml(i.catalog?.category ?? '')}"
-        data-shop="${escapeHtml(i.shop_slug)}" data-type="${i.sell_price !== null ? 'sell' : ''} ${i.buy_price !== null ? 'buy' : ''}">
+        data-shop="${i.shop_id}" data-type="${i.sell_price !== null ? 'sell' : ''} ${i.buy_price !== null ? 'buy' : ''}">
       <div class="product-card__top">${itemIcon(i.catalog, i.minecraft_id)}
         <div><div class="product-card__name">${escapeHtml(name)}</div><div class="product-card__shop">${escapeHtml(i.shop_name)}</div></div></div>
       <div class="product-card__trades">${rows.join('')}</div>
@@ -95,7 +94,7 @@ import Topbar from '@/components/Topbar.astro';
       const name = (i.catalog?.name ?? i.minecraft_id).toLowerCase();
       const matchesQuery = !query || name.includes(query);
       const matchesCategory = !category || i.catalog?.category === category;
-      const matchesShop = !shop || i.shop_slug === shop;
+      const matchesShop = !shop || String(i.shop_id) === shop;
       const itemType = `${i.sell_price !== null ? 'sell' : ''} ${i.buy_price !== null ? 'buy' : ''}`;
       const matchesType = !type || itemType.includes(type);
       return matchesQuery && matchesCategory && matchesShop && matchesType;
@@ -124,8 +123,8 @@ import Topbar from '@/components/Topbar.astro';
       const categories = Array.from(new Set(items.map((i) => i.catalog?.category).filter(Boolean))).sort() as string[];
       for (const c of categories) categorySelect.add(new Option(c, c));
 
-      const shops = Array.from(new Map(items.map((i) => [i.shop_slug, i.shop_name])).entries());
-      for (const [slug, name] of shops) shopSelect.add(new Option(name, slug));
+      const shops = Array.from(new Map(items.map((i) => [String(i.shop_id), i.shop_name])).entries());
+      for (const [shopId, name] of shops) shopSelect.add(new Option(name, shopId));
 
       loading.hidden = true;
       applyFilters();

@@ -22,7 +22,6 @@ import Topbar from '@/components/Topbar.astro';
       <div class="shop-edit__title">New shop</div>
       <form id="new-shop-form">
         <div class="field"><label>Name</label><input name="name" type="text" required /></div>
-        <div class="field"><label>Slug (used in the URL)</label><input name="slug" type="text" placeholder="e.g. redcliff-emporium" required /></div>
         <div class="shop-edit__row">
           <div></div>
           <div class="field"><label>X</label><input name="x" type="number" /></div>
@@ -45,13 +44,50 @@ import Topbar from '@/components/Topbar.astro';
     <div id="shop-list" class="shop-edit-list"></div>
     <div id="no-shops" class="dashboard-empty" hidden>You don't have any shops yet — create your first one above.</div>
   </div>
+
+  <!-- Delete shop: confirmation 1 of 2 -->
+  <dialog id="delete-step1" class="modal" aria-labelledby="delete-step1-title">
+    <div class="modal__body">
+      <h2 class="modal__title" id="delete-step1-title">Delete this shop?</h2>
+      <p class="modal__text">You are about to delete <strong class="modal__name" id="delete-step1-name"></strong>. Do you want to continue?</p>
+    </div>
+    <div class="modal__actions">
+      <button class="btn" type="button" id="delete-step1-cancel">Cancel</button>
+      <button class="btn btn--danger-solid" type="button" id="delete-step1-continue">Continue</button>
+    </div>
+  </dialog>
+
+  <!-- Delete shop: confirmation 2 of 2 (type the shop name) -->
+  <dialog id="delete-step2" class="modal" aria-labelledby="delete-step2-title">
+    <form method="dialog" id="delete-step2-form" novalidate>
+      <div class="modal__body">
+        <h2 class="modal__title" id="delete-step2-title">This cannot be undone</h2>
+        <div class="modal__warning">
+          Deleting <span class="modal__name" id="delete-step2-name"></span> will:
+          <ul>
+            <li>permanently delete the shop;</li>
+            <li>permanently delete <strong>all the products</strong> listed in this shop;</li>
+            <li>this action is <strong>irreversible</strong>.</li>
+          </ul>
+        </div>
+        <div class="field" style="margin-bottom:0;">
+          <label for="delete-step2-input">Type the shop name to confirm</label>
+          <input id="delete-step2-input" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" />
+        </div>
+        <p class="modal__error" id="delete-step2-error" role="alert"></p>
+      </div>
+      <div class="modal__actions">
+        <button class="btn" type="button" id="delete-step2-cancel">Cancel</button>
+        <button class="btn btn--danger-solid" type="submit" id="delete-step2-confirm" disabled>Delete shop permanently</button>
+      </div>
+    </form>
+  </dialog>
 </BaseLayout>
 
 <script>
   interface Shop {
     id: number;
     name: string;
-    slug: string;
     x: number | null;
     z: number | null;
     description: string | null;
@@ -59,8 +95,8 @@ import Topbar from '@/components/Topbar.astro';
     country_id: number | null;
     city_id: number | null;
   }
-  interface Country { id: number; name: string; slug: string; }
-  interface City { id: number; country_id: number; name: string; slug: string; }
+  interface Country { id: number; name: string; }
+  interface City { id: number; country_id: number; name: string; }
 
   const guard = document.getElementById('dashboard-guard') as HTMLElement;
   const content = document.getElementById('dashboard-content') as HTMLElement;
@@ -116,7 +152,6 @@ import Topbar from '@/components/Topbar.astro';
     card.innerHTML = `
       <div class="shop-edit__title">${escapeHtml(shop.name)}</div>
       <div class="field"><label>Name</label><input name="name" type="text" value="${escapeAttr(shop.name)}" required /></div>
-      <div class="field"><label>Slug</label><input name="slug" type="text" value="${escapeAttr(shop.slug)}" required /></div>
       <div class="shop-edit__row">
         <div></div>
         <div class="field"><label>X</label><input name="x" type="number" value="${shop.x ?? ''}" /></div>
@@ -130,13 +165,20 @@ import Topbar from '@/components/Topbar.astro';
       <div class="field"><label>Description</label><textarea name="description">${escapeHtml(shop.description ?? '')}</textarea></div>
       <div class="field"><label>Directions</label><textarea name="directions">${escapeHtml(shop.directions ?? '')}</textarea></div>
       <div class="shop-edit__actions">
-        <span class="shop-edit__status"></span>
-        <div style="display:flex; gap:10px;">
+        <div class="shop-edit__actions-group">
+          <button class="btn btn--danger" type="button" data-action="delete-shop">Delete Shop</button>
+          <span class="shop-edit__status"></span>
+        </div>
+        <div class="shop-edit__actions-group">
           <a class="btn" href="/dashboard/products?shop=${shop.id}">Manage products</a>
           <button class="btn btn--primary" type="submit">Save changes</button>
         </div>
       </div>
     `;
+
+    (card.querySelector('[data-action="delete-shop"]') as HTMLButtonElement).addEventListener('click', () => {
+      startDeleteFlow(shop);
+    });
 
     wireLocationSelects(card, shop.country_id, shop.city_id);
 
@@ -175,7 +217,6 @@ import Topbar from '@/components/Topbar.astro';
     const data = new FormData(form as HTMLFormElement);
     return {
       name: data.get('name'),
-      slug: data.get('slug'),
       x: data.get('x'),
       z: data.get('z'),
       description: data.get('description'),
@@ -240,6 +281,78 @@ import Topbar from '@/components/Topbar.astro';
     } catch {
       newShopStatus.textContent = 'Network error.';
       newShopStatus.className = 'shop-edit__status shop-edit__status--error';
+    }
+  });
+
+  // -- Delete shop: two explicit confirmations, the second one asks for the shop name --
+  const step1 = document.getElementById('delete-step1') as HTMLDialogElement;
+  const step2 = document.getElementById('delete-step2') as HTMLDialogElement;
+  const step2Form = document.getElementById('delete-step2-form') as HTMLFormElement;
+  const step2Input = document.getElementById('delete-step2-input') as HTMLInputElement;
+  const step2Confirm = document.getElementById('delete-step2-confirm') as HTMLButtonElement;
+  const step2Error = document.getElementById('delete-step2-error') as HTMLElement;
+  let shopToDelete: Shop | null = null;
+
+  function startDeleteFlow(shop: Shop) {
+    shopToDelete = shop;
+    (document.getElementById('delete-step1-name') as HTMLElement).textContent = shop.name;
+    step1.showModal();
+  }
+
+  (document.getElementById('delete-step1-cancel') as HTMLButtonElement).addEventListener('click', () => {
+    shopToDelete = null;
+    step1.close();
+  });
+
+  (document.getElementById('delete-step1-continue') as HTMLButtonElement).addEventListener('click', () => {
+    if (!shopToDelete) { step1.close(); return; }
+    step1.close();
+    (document.getElementById('delete-step2-name') as HTMLElement).textContent = shopToDelete.name;
+    step2Input.value = '';
+    step2Confirm.disabled = true;
+    step2Error.textContent = '';
+    step2.showModal();
+    step2Input.focus();
+  });
+
+  (document.getElementById('delete-step2-cancel') as HTMLButtonElement).addEventListener('click', () => {
+    shopToDelete = null;
+    step2.close();
+  });
+
+  // Closing the second dialog in any way (Cancel, Escape, success) clears the pending shop.
+  step2.addEventListener('close', () => { shopToDelete = null; });
+
+  step2Input.addEventListener('input', () => {
+    // Exact match (surrounding spaces ignored) with the real shop name.
+    step2Confirm.disabled = !shopToDelete || step2Input.value.trim() !== shopToDelete.name.trim();
+  });
+
+  step2Form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const shop = shopToDelete;
+    if (!shop || step2Input.value.trim() !== shop.name.trim()) return;
+
+    step2Confirm.disabled = true;
+    step2Error.textContent = '';
+    try {
+      const res = await fetch(`/api/merchant/shops/${shop.id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ confirmName: step2Input.value.trim() }),
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        step2Error.textContent = data.error ?? 'Could not delete the shop.';
+        step2Confirm.disabled = false;
+        return;
+      }
+      step2.close();
+      await loadShops();
+    } catch {
+      step2Error.textContent = 'Network error.';
+      step2Confirm.disabled = false;
     }
   });
 

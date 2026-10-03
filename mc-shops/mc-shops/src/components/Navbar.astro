@@ -1,4 +1,6 @@
 ---
+import ThemeToggle from '@/components/ThemeToggle.astro';
+
 interface Props {
   active: 'home' | 'shops' | 'products' | 'login' | 'dashboard';
 }
@@ -16,24 +18,22 @@ const links = [
       <span class="brand-mark"></span>
       <span class="brand-text">EdenShop</span>
     </a>
-    <nav class="navbar__links" aria-label="Main navigation">
-      {links.map((l) => (
-        <a
-          class="nav-link"
-          href={l.href}
-          aria-current={active === l.key ? 'page' : undefined}
-        >
-          {l.label}
-        </a>
-      ))}
-    </nav>
+    <ThemeToggle />
   </div>
 
+  <nav class="navbar__links" aria-label="Main navigation">
+    {links.map((l) => (
+      <a
+        class="nav-link"
+        href={l.href}
+        aria-current={active === l.key ? 'page' : undefined}
+      >
+        {l.label}
+      </a>
+    ))}
+  </nav>
+
   <div class="navbar__right">
-    <span class="navbar__status">
-      <span class="status-dot"></span>
-      data synced via Discord
-    </span>
     <div id="nav-auth-area" class="navbar__auth">
       <a class="btn btn--primary" href="/login">Vendor Login</a>
     </div>
